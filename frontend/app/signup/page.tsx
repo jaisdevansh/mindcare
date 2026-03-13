@@ -1,15 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Brain, ArrowRight, Github, Chrome, Mail, Lock, User, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { authService } from "@/lib/services/auth.service";
 import { useAppStore } from "@/lib/store";
 
 export default function SignupPage() {
+    return (
+        <React.Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#7C5CFF]"></div>
+            </div>
+        }>
+            <SignupContent />
+        </React.Suspense>
+    );
+}
+
+function SignupContent() {
     const [loading, setLoading] = useState(false);
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -17,7 +29,30 @@ export default function SignupPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [role, setRole] = useState<"user" | "helper">("user");
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { setUser } = useAppStore();
+
+    useEffect(() => {
+        const token = searchParams.get('token');
+        const userStr = searchParams.get('user');
+        const error = searchParams.get('error');
+
+        if (error) {
+            toast.error("Authentication failed. Please try again.");
+            router.replace('/signup');
+        } else if (token && userStr) {
+            try {
+                const user = JSON.parse(decodeURIComponent(userStr));
+                localStorage.setItem("token", token);
+                localStorage.setItem("user", JSON.stringify(user));
+                setUser(user);
+                toast.success("Welcome to MindCare!");
+                router.push("/dashboard");
+            } catch (err) {
+                toast.error("An error occurred during social login.");
+            }
+        }
+    }, [searchParams, router, setUser]);
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,17 +60,18 @@ export default function SignupPage() {
         try {
             const response = await authService.signup({ name, email, password, role });
             if (response.success) {
-                localStorage.setItem("token", response.data.token);
-                localStorage.setItem("user", JSON.stringify(response.data.user));
-                setUser(response.data.user);
-                toast.success("Account created successfully!");
-                router.push("/dashboard");
+                toast.success("Account created! Please verify your email.");
+                router.push(`/verify-email?email=${encodeURIComponent(email)}`);
             }
         } catch (error: any) {
             toast.error(error.message || "Registration failed. Please try again.");
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSocialLogin = (provider: 'google' | 'github') => {
+        window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/${provider}`;
     };
 
     return (
@@ -97,25 +133,8 @@ export default function SignupPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-medium text-[#9DA7B3] ml-1 uppercase">Join As</label>
-                            <div className="flex gap-2 p-1 bg-white/[0.05] border border-white/10 rounded-xl">
-                                <button
-                                    type="button"
-                                    onClick={() => setRole("user")}
-                                    className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${role === "user" ? "bg-[#7C5CFF] text-white shadow-lg" : "text-[#9DA7B3] hover:text-white"}`}
-                                >
-                                    User / Patient
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setRole("helper")}
-                                    className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${role === "helper" ? "bg-[#7C5CFF] text-white shadow-lg" : "text-[#9DA7B3] hover:text-white"}`}
-                                >
-                                    Wellness Helper
-                                </button>
-                            </div>
-                        </div>
+                        {/* Role selection removed - everyone joins as user first */}
+                        <input type="hidden" value="user" name="role" />
 
                         <div className="space-y-1">
                             <label className="text-[10px] font-medium text-[#9DA7B3] ml-1 uppercase">Choose Password</label>
@@ -162,11 +181,17 @@ export default function SignupPage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <button className="h-10 flex items-center justify-center gap-2 bg-white/[0.05] border border-white/10 rounded-xl text-white text-[11px] font-medium hover:bg-white/[0.1] transition-all outline-none">
+                        <button 
+                            onClick={() => handleSocialLogin('google')}
+                            className="h-10 flex items-center justify-center gap-2 bg-white/[0.05] border border-white/10 rounded-xl text-white text-[11px] font-medium hover:bg-white/[0.1] transition-all outline-none"
+                        >
                             <Chrome className="w-3.5 h-3.5" />
                             Google
                         </button>
-                        <button className="h-10 flex items-center justify-center gap-2 bg-white/[0.05] border border-white/10 rounded-xl text-white text-[11px] font-medium hover:bg-white/[0.1] transition-all outline-none">
+                        <button 
+                            onClick={() => handleSocialLogin('github')}
+                            className="h-10 flex items-center justify-center gap-2 bg-white/[0.05] border border-white/10 rounded-xl text-white text-[11px] font-medium hover:bg-white/[0.1] transition-all outline-none"
+                        >
                             <Github className="w-3.5 h-3.5" />
                             GitHub
                         </button>

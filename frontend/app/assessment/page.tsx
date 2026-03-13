@@ -132,6 +132,16 @@ export default function AssessmentPage() {
     const [result, setResult] = useState<AnalysisResult | null>(null);
     const [loadingText, setLoadingText] = useState('Analyzing your responses...');
 
+    // Auto-scroll to top when step changes
+    useEffect(() => {
+        const main = document.querySelector('main');
+        if (main) {
+            main.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [currentStep]);
+
     const fetchQuestions = async (selectedMode: Mode) => {
         try {
             const res = await assignmentService.getQuestions(selectedMode);
@@ -211,11 +221,11 @@ export default function AssessmentPage() {
     };
 
     return (
-        <div className="min-h-[80vh] max-w-3xl mx-auto flex flex-col">
+        <div className="w-full max-w-3xl mx-auto min-h-full flex flex-col py-0.5 md:py-2">
 
             {/* Progress Bar */}
             {currentStep >= 2 && currentStep < 12 && (
-                <div className="mb-8">
+                <div className="mb-4">
                     <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
                         <span className="flex items-center gap-2">
                             {mode === 'mcq'
@@ -253,7 +263,7 @@ export default function AssessmentPage() {
                         <motion.div
                             animate={{ y: [0, -8, 0] }}
                             transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                            className="relative mb-6 shadow-[0_0_40px_rgba(99,102,241,0.2)]"
+                            className="relative mb-4 shadow-[0_0_40px_rgba(99,102,241,0.2)]"
                         >
                             <div className="w-20 h-20 rounded-[1.8rem] bg-gradient-to-br from-indigo-500 to-violet-700 flex items-center justify-center border border-white/20 relative z-10 overflow-hidden">
                                 <div className="absolute inset-0 bg-white/10" />
@@ -261,11 +271,11 @@ export default function AssessmentPage() {
                             </div>
                         </motion.div>
 
-                        <div className="space-y-3 mb-6 relative">
+                        <div className="space-y-2 mb-4 relative">
                             <span className="inline-block px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[9px] uppercase tracking-[0.2em] font-black text-indigo-400 mb-1">
                                 Mental Wellness AI 2.0
                             </span>
-                            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-[0.9]">
+                            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter leading-[1]">
                                 Mental Wellness <br /> <span className="text-indigo-500">Check-in</span>
                             </h1>
                             <p className="text-slate-400 text-sm max-w-lg mx-auto leading-relaxed font-medium px-4">
@@ -290,7 +300,7 @@ export default function AssessmentPage() {
 
                         <Button
                             onClick={() => setCurrentStep(1)}
-                            className="h-14 px-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-lg font-black shadow-[0_10px_30px_rgba(99,102,241,0.3)] transition-all active:scale-95 flex items-center gap-3 group"
+                            className="h-12 px-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-base font-black shadow-[0_10px_30px_rgba(99,102,241,0.3)] transition-all active:scale-95 flex items-center gap-3 group"
                         >
                             Begin Assessment
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -312,7 +322,7 @@ export default function AssessmentPage() {
                         transition={{ duration: 0.35 }}
                         className="flex-1 flex flex-col py-6"
                     >
-                        <div className="mb-10 text-center">
+                        <div className="mb-6 text-center">
                             <motion.div
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
@@ -369,11 +379,11 @@ export default function AssessmentPage() {
                         transition={{ duration: 0.3 }}
                         className="flex-1"
                     >
-                        <div className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-8 md:p-10 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+                        <div className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-[60px] -mr-24 -mt-24" />
 
                             <div className="relative z-10">
-                                <div className="flex items-center gap-3 mb-8">
+                                <div className="flex items-center gap-3 mb-5">
                                     <span className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-lg">
                                         {questionIndex + 1}
                                     </span>
@@ -385,7 +395,7 @@ export default function AssessmentPage() {
                                     </span>
                                 </div>
 
-                                <h2 className="text-2xl md:text-3xl font-bold text-white mb-8 leading-tight">
+                                <h2 className="text-xl md:text-2xl font-bold text-white mb-6 leading-tight">
                                     {questions[questionIndex].question}
                                 </h2>
 
@@ -404,7 +414,7 @@ export default function AssessmentPage() {
                                                         updated[questionIndex] = opt;
                                                         setAnswers(updated);
                                                     }}
-                                                    className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 font-medium text-sm ${isSelected
+                                                    className={`w-full text-left px-4 py-3 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 font-medium text-sm ${isSelected
                                                         ? 'bg-indigo-600/25 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
                                                         : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/30 hover:bg-white/[0.07]'
                                                         }`}
@@ -427,14 +437,14 @@ export default function AssessmentPage() {
                                             updated[questionIndex] = e.target.value;
                                             setAnswers(updated);
                                         }}
-                                        rows={5}
+                                        rows={4}
                                         autoFocus
                                         className="w-full bg-white/5 border border-white/10 focus:border-indigo-500/60 rounded-2xl p-5 text-white text-base placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none transition-all backdrop-blur-md"
                                         placeholder="Share your honest feelings here... There are no wrong answers."
                                     />
                                 )}
 
-                                <div className="flex justify-between items-center mt-8">
+                                <div className="flex justify-between items-center mt-6">
                                     <button
                                         type="button"
                                         onClick={handleBack}

@@ -10,6 +10,18 @@ import { authService } from "@/lib/services/auth.service";
 import { useAppStore } from "@/lib/store";
 
 export default function LoginPage() {
+    return (
+        <React.Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#7C5CFF]"></div>
+            </div>
+        }>
+            <LoginContent />
+        </React.Suspense>
+    );
+}
+
+function LoginContent() {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -64,7 +76,7 @@ export default function LoginPage() {
     };
 
     const handleSocialLogin = (provider: 'google' | 'github') => {
-        window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000'}/auth/${provider}`;
+        window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/${provider}`;
     };
 
     return (

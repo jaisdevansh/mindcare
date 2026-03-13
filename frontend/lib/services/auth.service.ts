@@ -37,5 +37,11 @@ export const authService = {
             method: "POST",
             body: JSON.stringify({ token, newPassword }),
         });
+    },
+    async verifyOtp(email: string, otp: string) {
+        return apiFetch("/auth/verify-otp", {
+            method: "POST",
+            body: JSON.stringify({ email, otp }),
+        });
     }
 };

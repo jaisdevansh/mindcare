@@ -14,9 +14,10 @@ interface SmoothScrollProps {
  */
 export const SmoothScroll = ({ children }: SmoothScrollProps) => {
     const pathname = usePathname();
-    const isAdmin = pathname?.startsWith('/admin');
+    const PUBLIC_NAV_ROUTES = ['/', '/about', '/support', '/plans', '/share-space', '/talk-to-helper'];
+    const isPublicRoute = PUBLIC_NAV_ROUTES.includes(pathname || '');
 
-    if (isAdmin) return <>{children}</>;
+    if (!isPublicRoute) return <>{children}</>;
 
     return (
         <ReactLenis

@@ -221,6 +221,7 @@ export const githubAuth = passport.authenticate('github', { scope: ['user:email'
 export const githubCallback = (req: Request, res: Response, next: NextFunction) => {
     passport.authenticate('github', { session: false }, (err: any, user: any) => {
         if (err || !user) {
+            console.error('GitHub Strategy Error or No User:', err);
             return res.redirect(`${env.frontendUrl}/login?error=auth_failed`);
         }
         const payload = { id: user._id, role: user.role };

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { User, Settings, Shield, Bell, Lock, Palette, Camera, Save, X, Loader2, MapPin, Phone, Globe, Calendar } from 'lucide-react';
+import { User, Settings, Shield, Bell, Lock, Palette, Camera, Save, X, Loader2, MapPin, Phone, Globe, Calendar, HeartPlus, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getPublicUrl } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -419,6 +420,31 @@ export default function ProfilePage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Become a Helper CTA - Only for regular users */}
+            {user.role === 'user' && !isEditing && (
+                <Card className="bg-indigo-500/5 border-indigo-500/10 rounded-[2.5rem] mt-8 overflow-hidden relative group hover:bg-indigo-500/10 transition-all cursor-pointer border-dashed">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] -mr-32 -mt-32" />
+                    <CardHeader className="p-8 pb-0">
+                        <CardTitle className="flex items-center gap-3 text-indigo-400 text-2xl font-black italic uppercase tracking-wider">
+                            <HeartPlus className="w-6 h-6" />
+                            Want to help others?
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                            <h4 className="text-white text-lg font-bold mb-1">Become a Verified Helper</h4>
+                            <p className="text-sm text-slate-500 max-w-md font-medium">Join our community of empathetic listeners and help others in their wellness journey. Get trained and verified by MindCare.</p>
+                        </div>
+                        <Link href="/helpers">
+                            <Button className="bg-gradient-to-r from-[#7C5CFF] to-[#5B6CFF] hover:opacity-90 text-white rounded-2xl h-14 px-10 font-black uppercase tracking-tighter shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-2">
+                                Apply Now
+                                <ArrowRight className="w-5 h-5" />
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Danger Zone */}
             {!isEditing && (
