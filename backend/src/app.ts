@@ -54,6 +54,11 @@ if (process.env.NODE_ENV === 'production') {
     app.use(limiter);
 }
 
+// Health check endpoint
+app.get(['/health', '/healthy'], (req, res) => {
+    res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/helpers', helperRoutes);
