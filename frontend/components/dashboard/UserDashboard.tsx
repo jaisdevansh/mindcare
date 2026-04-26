@@ -14,34 +14,12 @@ import { EmotionalCalendar } from './EmotionalCalendar';
 import { AITherapistWidget } from './AITherapistWidget';
 import { AIInsights } from './AIInsights';
 import { ExerciseCards } from './ExerciseCards';
+import GlobalLoading from '@/app/loading';
+import { getMoodIcon, getMoodBg, getMoodInsight, getMoodScore, MOOD_SCORE_MAP } from '@/lib/moodIcons';
 
 // ─── MOOD EMOJI ───────────────────────────────────────────────────────────────
 
-const MOOD_EMOJI: Record<string, string> = {
-    happy: '😊', neutral: '😐', sad: '😔', stressed: '😤', anxious: '😰', burnout: '🥵'
-};
-const MOOD_BG: Record<string, string> = {
-    happy: 'from-emerald-500/15 to-teal-500/5 border-emerald-500/20',
-    neutral: 'from-indigo-500/15 to-violet-500/5 border-indigo-500/20',
-    sad: 'from-blue-500/15 to-indigo-500/5 border-blue-500/20',
-    stressed: 'from-amber-500/15 to-yellow-500/5 border-amber-500/20',
-    anxious: 'from-orange-500/15 to-amber-500/5 border-orange-500/20',
-    burnout: 'from-rose-500/15 to-red-500/5 border-rose-500/20',
-};
-const MOOD_INSIGHT: Record<string, string> = {
-    happy: 'You\'re in a great space today. Keep nurturing that positivity.',
-    neutral: 'You\'re in a balanced state — a good day to reflect and recharge.',
-    sad: 'It\'s okay to feel this way. Consider a grounding or breathing exercise.',
-    stressed: 'Stress is high today. Try the 4-7-8 breathing exercise below.',
-    anxious: 'You seem anxious. A short walk or grounding technique may help.',
-    burnout: 'Signs of burnout detected. Rest is productive — take it easy today.',
-};
-
-// ─── MOOD SCORE MAP ───────────────────────────────────────────────────────────
-
-const MOOD_SCORE_MAP: Record<string, number> = {
-    happy: 5, neutral: 3, sad: 1, stressed: 2, anxious: 2, burnout: 0
-};
+// Removed - now using Lucide icons from moodIcons.tsx
 
 // ─── QUICK ACTION BUTTON ──────────────────────────────────────────────────────
 
@@ -109,7 +87,7 @@ export const UserDashboard = () => {
             const match = history.find(h => h.createdAt?.startsWith(dateStr));
             return {
                 day,
-                score: match ? MOOD_SCORE_MAP[match.detectedMood?.toLowerCase() || 'neutral'] ?? 3 : 3,
+                score: match ? getMoodScore(match.detectedMood?.toLowerCase() || 'neutral') : 3,
                 mood: match?.detectedMood || '',
             };
         });
@@ -117,16 +95,7 @@ export const UserDashboard = () => {
     })();
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[500px]">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#7C5CFF]/20 border border-[#7C5CFF]/30 flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 text-[#7C5CFF] animate-spin" />
-                    </div>
-                    <p className="text-[#9DA7B3] text-sm font-medium">Loading your wellness dashboard…</p>
-                </div>
-            </div>
-        );
+        return <GlobalLoading />;
     }
 
     return (
@@ -227,17 +196,21 @@ export const UserDashboard = () => {
 
                 {/* Current Mood Card */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-                    className={`relative overflow-hidden bg-gradient-to-br border rounded-[1.5rem] p-6 flex flex-col justify-between ${MOOD_BG[mood] || MOOD_BG.neutral}`}>
+                    className={`relative overflow-hidden bg-gradient-to-br border rounded-[1.5rem] p-6 flex flex-col justify-between ${getMoodBg(mood)}`}>
                     <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full blur-[50px] bg-current opacity-20 pointer-events-none" />
                     <div>
                         <p className="text-[10px] font-black text-[#9DA7B3] uppercase tracking-widest mb-3">Current Mood</p>
                         <div className="flex items-center gap-3 mb-3">
-                            <motion.span className="text-5xl" animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 3 }}>
-                                {MOOD_EMOJI[mood] || '🧠'}
-                            </motion.span>
+                            <motion.div 
+                                className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"
+                                animate={{ scale: [1, 1.05, 1] }} 
+                                transition={{ repeat: Infinity, duration: 3 }}
+                            >
+                                {getMoodIcon(mood, 'w-6 h-6')}
+                            </motion.div>
                             <p className="text-2xl font-black text-white capitalize">{mood}</p>
                         </div>
-                        <p className="text-xs text-[#9DA7B3] leading-relaxed">{MOOD_INSIGHT[mood] || MOOD_INSIGHT.neutral}</p>
+                        <p className="text-xs text-[#9DA7B3] leading-relaxed">{getMoodInsight(mood)}</p>
                     </div>
                     {latest && (
                         <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between">

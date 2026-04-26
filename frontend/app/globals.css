@@ -8,19 +8,19 @@
     --card-foreground: #E6EDF3;
     --popover: #0B0F2A;
     --popover-foreground: #E6EDF3;
-    --primary: #7C5CFF;
+    --primary: #3B82F6;
     --primary-foreground: #ffffff;
-    --secondary: #5B6CFF;
+    --secondary: #60A5FA;
     --secondary-foreground: #ffffff;
     --muted: #1B2150;
     --muted-foreground: #9DA7B3;
-    --accent: #7C5CFF;
+    --accent: #3B82F6;
     --accent-foreground: #ffffff;
     --destructive: #ff4d4d;
     --destructive-foreground: #ffffff;
     --border: #30363D;
     --input: #1B2150;
-    --ring: #7C5CFF;
+    --ring: #3B82F6;
     --radius: 0.75rem;
   }
 }
@@ -50,6 +50,19 @@ body {
   min-height: 100vh;
 }
 
+/* Ensure all buttons have pointer cursor */
+button,
+[role="button"],
+a,
+.cursor-pointer {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][disabled] {
+  cursor: not-allowed;
+}
+
 .bg-hero-gradient {
   background: radial-gradient(circle at top, #141B3A 0%, #0B0F2A 100%);
 }
@@ -62,11 +75,11 @@ body {
 }
 
 .glow-purple {
-  box-shadow: 0 0 20px rgba(124, 92, 255, 0.3);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }
 
 .hover-glow-purple:hover {
-  box-shadow: 0 0 30px rgba(124, 92, 255, 0.5);
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
 }
 
 @keyframes gradient-x {
@@ -103,12 +116,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(166, 124, 82, 0.2);
+  background: rgba(59, 130, 246, 0.2);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(166, 124, 82, 0.5);
+  background: rgba(59, 130, 246, 0.5);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -117,7 +130,7 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(166, 124, 82, 0.2);
+  background: rgba(59, 130, 246, 0.2);
 }
 
 html {
@@ -130,7 +143,7 @@ body {
 }
 
 ::selection {
-  background: rgba(166, 124, 82, 0.3);
+  background: rgba(59, 130, 246, 0.3);
   color: #fff;
 }
 
@@ -168,6 +181,21 @@ body {
   animation: pulse-slow 4s ease-in-out infinite;
 }
 
+@keyframes hue-shift {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+.animate-hue-shift {
+  animation: hue-shift 30s infinite linear;
+  /* Force GPU rendering for smooth color shifting */
+  transform: translateZ(0);
+}
+
 /* Lenis Smooth Scroll Configuration */
 html.lenis,
 html.lenis body {
@@ -188,4 +216,24 @@ html.lenis body {
 
 .lenis.lenis-scrolling iframe {
   pointer-events: none;
+}
+
+/* --- PERFORMANCE OPTIMIZATIONS --- */
+/* Force hardware acceleration (GPU) on heavy blurs to stop lag during animations */
+.backdrop-blur-xl, 
+.backdrop-blur-lg, 
+.backdrop-blur-md, 
+.bg-glass {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform, backdrop-filter;
+}
+
+/* Optimize SVGs in animated charts */
+.recharts-wrapper svg {
+  shape-rendering: optimizeSpeed;
 }

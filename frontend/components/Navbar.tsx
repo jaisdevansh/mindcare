@@ -84,6 +84,7 @@ export const Navbar = () => {
 
                 {/* Mobile Toggle */}
                 <button
+                    aria-label="Toggle menu"
                     className="lg:hidden text-white p-2 hover:bg-white/5 rounded-lg transition-colors"
                     onClick={() => setIsOpen(!isOpen)}
                 >

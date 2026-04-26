@@ -115,23 +115,33 @@ const safeParseJSON = (text: string): any => {
 
 export const detectMoodFromAnswers = async (summary: string): Promise<{ mood: string; confidenceScore: number }> => {
     try {
-        const prompt = `You are a mental health AI. Analyze this user's emotional responses and detect their current mood.
+        const prompt = `You are an expert clinical psychologist AI. Read the user's exact responses carefully and deduce their true current mood and a REALISTIC confidence score (0-100) based strictly on their words.
 
 User responses:
 ${summary}
 
-You MUST respond ONLY with raw JSON. No markdown. No explanation. Example:
-{"mood":"stressed","confidenceScore":72}
+CRITICAL INSTRUCTIONS:
+1. Do not sugarcoat the mood. If they sound depressed or exhausted, output 'sad' or 'burnout'.
+2. The confidenceScore must reflect HOW CLEARLY the user expressed their feelings:
+   - If answers are pre-selected MCQ options (short, non-descriptive), score 35-55 (low — user just clicked, not described).
+   - If answers are brief/vague (1-2 words), score 40-60.
+   - If answers are moderately descriptive, score 55-75.
+   - Only give 75-90 if the user wrote detailed, emotionally specific, spontaneous sentences.
+   - NEVER give above 90 unless the answers are deeply personal and emotionally explicit.
+3. You MUST respond ONLY with a raw JSON object containing "mood" and "confidenceScore". No markdown.
 
-Valid moods: happy, neutral, sad, stressed, anxious, burnout`;
+Valid moods: happy, neutral, sad, stressed, anxious, burnout
 
-        const raw = await generateGeminiResponse(prompt);
+Example output format:
+{"mood":"stressed","confidenceScore":62}`;
+
+        const raw = await generateGroqResponse(prompt, 0.2, true);
         console.log('[Mood] Raw AI response:', raw.substring(0, 100));
         const parsed = safeParseJSON(raw);
         if (parsed?.mood) {
             return {
                 mood: String(parsed.mood).toLowerCase(),
-                confidenceScore: Number(parsed.confidenceScore) || 70,
+                confidenceScore: Number(parsed.confidenceScore) || 55,
             };
         }
     } catch (err) {
@@ -144,17 +154,23 @@ Valid moods: happy, neutral, sad, stressed, anxious, burnout`;
 
 export const detectDepressionRisk = async (summary: string): Promise<{ depressionScore: number; riskLevel: 'Low' | 'Moderate' | 'High' }> => {
     try {
-        const prompt = `You are a clinical mental health AI. Analyze this emotional summary and assess depression risk.
+        const prompt = `You are an expert clinical psychiatrist AI. Analyze this emotional summary and assess the user's depression risk and severity score (0-100) based STRICTLY on their exact answers.
 
 User responses:
 ${summary}
 
-You MUST respond ONLY with raw JSON. No markdown. No explanation. Example:
-{"depressionScore":45,"riskLevel":"Moderate"}
+CRITICAL INSTRUCTIONS:
+1. Be extremely accurate. 0-30 = Low, 31-60 = Moderate, 61-100 = High.
+2. If the user mentions poor sleep, lack of motivation, feelings of hopelessness, or isolation, the depressionScore MUST be appropriately high (e.g., 60-90) and riskLevel "High".
+3. Do not default to low risk if negative symptoms are present.
+4. You MUST respond ONLY with a raw JSON object containing "depressionScore" and "riskLevel".
 
-Valid riskLevel values: Low, Moderate, High`;
+Valid riskLevel values: Low, Moderate, High
 
-        const raw = await generateGeminiResponse(prompt);
+Example output format:
+{"depressionScore":75,"riskLevel":"High"}`;
+
+        const raw = await generateGroqResponse(prompt, 0.2, true);
         console.log('[Depression] Raw AI response:', raw.substring(0, 100));
         const parsed = safeParseJSON(raw);
         if (parsed && typeof parsed.depressionScore !== 'undefined') {
@@ -174,19 +190,24 @@ Valid riskLevel values: Low, Moderate, High`;
 
 export const predictTomorrowMood = async (summary: string, currentMood: string): Promise<{ predictedMood: string; confidence: number }> => {
     try {
-        const prompt = `You are a mental wellness AI. Predict the user's likely mood tomorrow based on today's responses.
+        const prompt = `You are a mental wellness AI. Predict the user's most likely mood tomorrow based strictly on their exact responses today.
 
 Current mood: ${currentMood}
 
 User responses:
 ${summary}
 
-You MUST respond ONLY with raw JSON. No markdown. No explanation. Example:
-{"predictedMood":"neutral","confidence":65}
+CRITICAL INSTRUCTIONS:
+1. Be realistic. If the user is currently "burnout" or "sad", they are unlikely to magically be "happy" tomorrow unless they mentioned a specific upcoming positive event.
+2. Provide a realistic confidence percentage based on how consistent their answers are.
+3. You MUST respond ONLY with a raw JSON object containing "predictedMood" and "confidence".
 
-Valid moods: happy, neutral, sad, stressed, anxious, burnout`;
+Valid moods: happy, neutral, sad, stressed, anxious, burnout
 
-        const raw = await generateGeminiResponse(prompt);
+Example output format:
+{"predictedMood":"anxious","confidence":70}`;
+
+        const raw = await generateGroqResponse(prompt, 0.3, true);
         console.log('[Prediction] Raw AI response:', raw.substring(0, 100));
         const parsed = safeParseJSON(raw);
         if (parsed?.predictedMood) {
@@ -210,16 +231,20 @@ export const generateTherapistSuggestions = async (summary: string, mood: string
 Responses:
 ${summary}
 
-Give 4 short, warm, personalized self-care suggestions.
+CRITICAL RULES:
+1. Do NOT give generic advice like "take a walk", "journal", or "drink water".
+2. Create 4 HIGHLY PERSONALIZED and UNIQUE self-care suggestions based EXACTLY on what the user said in their responses above.
+3. If they talked about work, give work-related stress advice. If they talked about sleep, give sleep-specific advice.
+4. Keep them short, warm, and practical.
 
-You MUST respond ONLY with a raw JSON array. No markdown. No explanation. Example:
-["Suggestion 1","Suggestion 2","Suggestion 3","Suggestion 4"]`;
+You MUST respond ONLY with a raw JSON object containing an array of strings under the key "suggestions". No markdown. Example:
+{ "suggestions": ["Personalized tip 1", "Personalized tip 2", "Personalized tip 3", "Personalized tip 4"] }`;
 
-        const raw = await generateGroqResponse(prompt);
+        const raw = await generateGroqResponse(prompt, 0.9, true);
         console.log('[Suggestions] Raw AI response:', raw.substring(0, 100));
         const parsed = safeParseJSON(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.slice(0, 4).map(String);
+        if (parsed && Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0) {
+            return parsed.suggestions.slice(0, 4).map(String);
         }
     } catch (err) {
         console.error('[Therapist suggestions error]', err);

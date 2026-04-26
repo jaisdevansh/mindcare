@@ -28,7 +28,7 @@ export const AITherapistWidget = () => {
         try {
             const res = await aiService.chat(msg);
             if (res?.success) {
-                setReply(res.data?.reply || res.data?.message || 'I\'m here for you. Tell me more.');
+                setReply(res.data?.aiResponse || res.data?.reply || res.data?.message || 'I\'m here for you. Tell me more.');
             } else {
                 setReply('I\'m here for you. Tell me more.');
             }

@@ -138,7 +138,7 @@ const UserDetailPanel = ({
                 <div className="flex flex-col items-center text-center pt-4">
                     <div className="relative">
                         {user.profileImage ? (
-                            <img src={getPublicUrl(user.profileImage)} alt={user.name}
+                            <img src={getPublicUrl(user.profileImage) ?? undefined} alt={user.name}
                                 className="w-24 h-24 rounded-[1.5rem] object-cover border-2 border-[#A67C52]/30"
                                 onError={(e) => { (e.target as HTMLImageElement).src = '/images/avatar.png'; }} />
                         ) : (
@@ -480,7 +480,7 @@ export default function UserManager() {
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#A67C52]/30 to-[#7F5539]/20 border border-[#A67C52]/20 flex items-center justify-center font-black text-[#A67C52] text-sm shrink-0">
                                                                 {user.profileImage ? (
-                                                                    <img src={getPublicUrl(user.profileImage)} alt={user.name}
+                                                                    <img src={getPublicUrl(user.profileImage) ?? undefined} alt={user.name}
                                                                         className="w-full h-full rounded-2xl object-cover"
                                                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                                                 ) : initials(user.name)}

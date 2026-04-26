@@ -8,27 +8,33 @@ interface SmoothScrollProps {
     children: ReactNode;
 }
 
+// Routes where body/document is the natural scroll container — Lenis works great here
+const LENIS_ROUTES = ['/', '/about', '/support', '/plans', '/share-space', '/talk-to-helper',
+    '/login', '/signup', '/verify-email', '/forgot-password', '/reset-password', '/choose-mode', '/apply-helper'];
+
 /**
- * SmoothScroll component using Lenis for butter-smooth scrolling.
- * Wrapped around the main layout to provide consistent smooth scrolling across the app.
+ * SmoothScroll using Lenis — only active on public/auth pages.
+ * Dashboard/app pages use overflow-y-auto on an inner div (h-screen layout),
+ * so Lenis root mode would conflict and break scrolling there.
  */
 export const SmoothScroll = ({ children }: SmoothScrollProps) => {
     const pathname = usePathname();
-    const PUBLIC_NAV_ROUTES = ['/', '/about', '/support', '/plans', '/share-space', '/talk-to-helper'];
-    const isPublicRoute = PUBLIC_NAV_ROUTES.includes(pathname || '');
+    const useLenis = LENIS_ROUTES.includes(pathname);
 
-    if (!isPublicRoute) return <>{children}</>;
+    if (!useLenis) {
+        return <>{children}</>;
+    }
 
     return (
         <ReactLenis
             root
             options={{
-                duration: 1.8,
-                easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                duration: 0.8,
+                easing: (t) => 1 - Math.pow(1 - t, 4),
                 orientation: "vertical",
                 gestureOrientation: "vertical",
                 smoothWheel: true,
-                wheelMultiplier: 1.1,
+                wheelMultiplier: 1.2,
                 touchMultiplier: 1.5,
                 infinite: false,
             }}
@@ -37,4 +43,3 @@ export const SmoothScroll = ({ children }: SmoothScrollProps) => {
         </ReactLenis>
     );
 };
-

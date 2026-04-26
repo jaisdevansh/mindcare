@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import {
     Users, Star, MessageCircle, Heart, X, ChevronRight, CheckCircle2,
-    Clock, XCircle, Loader2, BadgeCheck, Search, Shield, Sparkles
+    Clock, XCircle, Loader2, BadgeCheck, Search, Shield, Sparkles, Phone, IndianRupee
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { PaymentModal } from '@/components/helpers/PaymentModal';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +30,7 @@ const STATUS_CONFIG = {
 
 // ─── HELPER CARD ──────────────────────────────────────────────────────────────
 
-const HelperCard = ({ helper, index }: { helper: Helper; index: number }) => (
+const HelperCard = ({ helper, index, onPay }: { helper: Helper; index: number; onPay: (helper: Helper) => void }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -67,10 +69,28 @@ const HelperCard = ({ helper, index }: { helper: Helper; index: number }) => (
             <span className="text-sm font-bold text-white">{helper.rating?.toFixed(1) || '5.0'}</span>
         </div>
 
-        {/* Action */}
-        <button className="w-full h-9 bg-gradient-to-r from-[#7C5CFF] to-[#5B6CFF] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-[#7C5CFF]/20 hover:opacity-90 transition-all active:scale-[0.98]">
-            <MessageCircle className="w-3.5 h-3.5" /> Start Chat
-        </button>
+        {/* Pricing hint */}
+        <div className="flex gap-2 text-[10px] text-[#9DA7B3] font-medium">
+            <span className="flex items-center gap-0.5"><IndianRupee className="w-2.5 h-2.5" />10 chat</span>
+            <span className="text-white/10">|</span>
+            <span className="flex items-center gap-0.5"><IndianRupee className="w-2.5 h-2.5" />30 / 30 min call</span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 w-full">
+            <button
+                onClick={() => onPay(helper)}
+                className="flex-1 h-9 bg-gradient-to-r from-[#7C5CFF] to-[#5B6CFF] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-[#7C5CFF]/20 hover:opacity-90 transition-all active:scale-[0.98]"
+            >
+                <MessageCircle className="w-3.5 h-3.5" /> Chat
+            </button>
+            <button
+                onClick={() => onPay(helper)}
+                className="flex-1 h-9 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-500/25 transition-all active:scale-[0.98]"
+            >
+                <Phone className="w-3.5 h-3.5" /> Call
+            </button>
+        </div>
     </motion.div>
 );
 
@@ -287,11 +307,19 @@ const ApplyModal = ({ onClose, onSuccess }: { onClose: () => void; onSuccess: (a
 
 export default function HelpersPage() {
     const { user } = useAppStore();
+    const router = useRouter();
     const [showModal, setShowModal] = useState(false);
     const [myApplication, setMyApplication] = useState<MyApplication | null>(null);
     const [helpers, setHelpers] = useState<Helper[]>([]);
     const [loadingHelpers, setLoadingHelpers] = useState(true);
     const [search, setSearch] = useState('');
+    const [payingHelper, setPayingHelper] = useState<Helper | null>(null);
+
+    const handlePaySuccess = (type: 'chat' | 'call', sessionToken: string) => {
+        setPayingHelper(null);
+        if (type === 'chat') router.push('/ai-chat');
+        else toast.success('Call session starting — feature coming soon!');
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -387,7 +415,7 @@ export default function HelpersPage() {
                         <div key={i} className="h-64 bg-white/[0.03] border border-white/[0.06] rounded-[1.5rem] animate-pulse" />
                     ))
                 ) : filtered.length > 0 ? (
-                    filtered.map((helper, i) => <HelperCard key={helper._id} helper={helper} index={i} />)
+                    filtered.map((helper, i) => <HelperCard key={helper._id} helper={helper} index={i} onPay={setPayingHelper} />)
                 ) : (
                     <div className="col-span-4 text-center py-12 text-[#9DA7B3] text-sm">
                         {search ? `No helpers match "${search}"` : 'No approved helpers yet.'}
@@ -419,12 +447,23 @@ export default function HelpersPage() {
                 )}
             </div>
 
-            {/* ── Modal ── */}
+            {/* ── Apply Modal ── */}
             <AnimatePresence>
                 {showModal && (
                     <ApplyModal
                         onClose={() => setShowModal(false)}
                         onSuccess={(app) => { setMyApplication(app); setShowModal(false); }}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* ── Payment Modal ── */}
+            <AnimatePresence>
+                {payingHelper && (
+                    <PaymentModal
+                        helper={payingHelper}
+                        onClose={() => setPayingHelper(null)}
+                        onSuccess={handlePaySuccess}
                     />
                 )}
             </AnimatePresence>

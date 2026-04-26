@@ -7,6 +7,7 @@ import { generateSupportiveResponse } from './aiChat.service';
 import { MoodLog } from './moodLog.model';
 import { DepressionAnalysis } from './depressionAnalysis.model';
 import { AIChat } from './aiChat.model';
+import { aiLogger } from '../../utils/logger';
 
 export const processChat = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -16,39 +17,62 @@ export const processChat = async (req: AuthRequest, res: Response, next: NextFun
             return;
         }
 
-        // 1. Save user message and analyze mood
+        aiLogger.separator();
+        aiLogger.info('===== AI CHAT REQUEST START =====');
+        aiLogger.info(`User Message: ${message}`);
+        aiLogger.info(`User ID: ${req.user.id}`);
+
+        // 1. Analyze mood and depression risk FIRST
+        aiLogger.info('Step 1: Analyzing mood and depression risk...');
         const moodData = await detectMood(message);
+        aiLogger.aiChat('Mood Detected', moodData);
+        
+        const depressionData = await checkDepressionRisk(message);
+        aiLogger.aiChat('Depression Analysis', depressionData);
+
+        // 2. Save user message to chat history BEFORE generating AI response
+        aiLogger.info('Step 2: Saving user message to chat history...');
+        await AIChat.create({
+            userId: req.user.id,
+            role: 'user',
+            content: message
+        });
+        aiLogger.success('User message saved');
+
+        // 3. Save mood and depression logs
+        aiLogger.info('Step 3: Saving mood and depression logs...');
         await MoodLog.create({
             userId: req.user.id,
             text: message,
             detectedMood: moodData.mood,
             confidenceScore: moodData.score,
         });
+        aiLogger.success('Mood log saved');
 
-        await AIChat.create({
-            userId: req.user.id,
-            role: 'user',
-            content: message
-        });
-
-        // 2. Analyze depression risk and save to depression_analysis
-        const depressionData = await checkDepressionRisk(message);
         await DepressionAnalysis.create({
             userId: req.user.id,
             text: message,
             depressionScore: depressionData.depressionScore,
             riskLevel: depressionData.riskLevel,
         });
+        aiLogger.success('Depression analysis saved');
 
-        // 3. Generate supportive AI response
-        const aiResponse = await generateSupportiveResponse(message, moodData, depressionData);
+        // 4. NOW generate AI response with full context (including current message in history)
+        aiLogger.info('Step 4: Generating AI response with full context...');
+        const aiResponse = await generateSupportiveResponse(message, moodData, depressionData, req.user.id);
+        aiLogger.aiChat(`AI Response Generated: ${aiResponse.substring(0, 100)}${aiResponse.length > 100 ? '...' : ''}`);
 
-        // 4. Save AI response
+        // 5. Save AI response
+        aiLogger.info('Step 5: Saving AI response...');
         await AIChat.create({
             userId: req.user.id,
             role: 'ai',
             content: aiResponse
         });
+        aiLogger.success('AI response saved');
+
+        aiLogger.success('===== AI CHAT REQUEST COMPLETE =====');
+        aiLogger.separator();
 
         sendResponse(res, 200, true, 'AI response generated successfully', {
             aiResponse,
@@ -56,6 +80,9 @@ export const processChat = async (req: AuthRequest, res: Response, next: NextFun
             depressionRisk: depressionData,
         });
     } catch (error) {
+        aiLogger.separator();
+        aiLogger.error('===== AI CHAT ERROR =====', error);
+        aiLogger.separator();
         next(error);
     }
 };

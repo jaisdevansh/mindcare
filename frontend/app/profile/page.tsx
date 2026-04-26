@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { User, Settings, Shield, Bell, Lock, Palette, Camera, Save, X, Loader2, MapPin, Phone, Globe, Calendar, HeartPlus, ArrowRight } from 'lucide-react';
+import { User, Settings, Shield, Bell, Lock, Palette, Camera, Save, X, Loader2, MapPin, Phone, Globe, Calendar, HeartPlus, ArrowRight, LocateFixed } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getPublicUrl } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,6 +17,7 @@ export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [profileImgSrc, setProfileImgSrc] = useState<string>('');
     const [imgKey, setImgKey] = useState(0);
@@ -63,6 +64,44 @@ export default function ProfilePage() {
             ...prev,
             [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
         }));
+    };
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser");
+            return;
+        }
+        setIsLocating(true);
+        const loadingToast = toast.loading("Fetching location...");
+        
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                try {
+                    const { latitude, longitude } = position.coords;
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`);
+                    const data = await res.json();
+                    
+                    const city = data.address.city || data.address.town || data.address.village || data.address.county || "";
+                    const country = data.address.country || "";
+                    const locationString = [city, country].filter(Boolean).join(", ");
+                    
+                    if (locationString) {
+                        setFormData(prev => ({ ...prev, location: locationString }));
+                        toast.success("Location updated!", { id: loadingToast });
+                    } else {
+                        toast.error("Could not determine exact location", { id: loadingToast });
+                    }
+                } catch (error) {
+                    toast.error("Failed to fetch location details", { id: loadingToast });
+                } finally {
+                    setIsLocating(false);
+                }
+            },
+            () => {
+                setIsLocating(false);
+                toast.error("Location access denied. Please enable permissions.", { id: loadingToast });
+            }
+        );
     };
 
     const handleSave = async () => {
@@ -300,7 +339,7 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 relative group">
                                             <label className="text-sm font-bold text-slate-400 ml-1 flex items-center gap-2">
                                                 <Calendar className="w-4 h-4" /> Date of Birth
                                             </label>
@@ -309,20 +348,36 @@ export default function ProfilePage() {
                                                 name="dateOfBirth"
                                                 value={formData.dateOfBirth}
                                                 onChange={handleInputChange}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                                                style={{ colorScheme: 'dark' }}
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer hover:bg-white/[0.08]"
                                             />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold text-slate-400 ml-1 flex items-center gap-2">
                                                 <MapPin className="w-4 h-4" /> Location
                                             </label>
-                                            <input
-                                                name="location"
-                                                value={formData.location}
-                                                onChange={handleInputChange}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-                                                placeholder="City, Country"
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    name="location"
+                                                    value={formData.location}
+                                                    onChange={handleInputChange}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-5 pr-14 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                                                    placeholder="City, Country"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleGetLocation}
+                                                    disabled={isLocating}
+                                                    title="Use Current Location"
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-xl transition-all disabled:opacity-50 group"
+                                                >
+                                                    {isLocating ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <LocateFixed className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                    )}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

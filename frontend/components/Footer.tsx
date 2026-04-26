@@ -20,8 +20,8 @@ export const Footer = () => {
                         The futuristic emotional wellness platform for the modern generation. Track, talk, and heal in a safe AI-powered space.
                     </p>
                     <div className="flex items-center gap-4">
-                        {[Twitter, Github, Linkedin].map((Icon, i) => (
-                            <a key={i} href="#" className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-[#9DA7B3] hover:text-white hover:bg-white/10 hover:border-white/20 transition-all">
+                        {[{ Icon: Twitter, name: 'Twitter' }, { Icon: Github, name: 'GitHub' }, { Icon: Linkedin, name: 'LinkedIn' }].map(({ Icon, name }, i) => (
+                            <a key={i} href="#" aria-label={name} className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-[#9DA7B3] hover:text-white hover:bg-white/10 hover:border-white/20 transition-all">
                                 <Icon className="w-4 h-4" />
                             </a>
                         ))}
@@ -64,10 +64,10 @@ export const Footer = () => {
                 </div>
             </div>
             <div className="max-w-7xl mx-auto px-6 border-t border-white/5 pt-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                <p className="text-[13px] text-[#9DA7B3]/60 font-medium">© 2026 MindCare. All rights reserved.</p>
+                <p className="text-[13px] text-[#9DA7B3] font-medium">© 2026 MindCare. All rights reserved.</p>
                 <div className="flex items-center gap-6">
                     {['Terms', 'Cookies', 'Security'].map((item) => (
-                        <Link key={item} href="#" className="text-[13px] text-[#9DA7B3]/60 hover:text-white font-medium">
+                        <Link key={item} href="#" className="text-[13px] text-[#9DA7B3] hover:text-white font-medium">
                             {item}
                         </Link>
                     ))}

@@ -392,7 +392,7 @@ export default function CommunityPage() {
                             key={post._id}
                             post={post}
                             index={i}
-                            currentUserId={user?._id || user?.id || ''}
+                            currentUserId={(user as any)?._id || user?.id || ''}
                             onDelete={handleDelete}
                             onReplyAdded={handleReplyAdded}
                             onReplyDeleted={handleReplyDeleted}

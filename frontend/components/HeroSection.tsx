@@ -18,15 +18,22 @@ export const HeroSection = () => {
     const dy = useSpring(mouseY, springConfig);
 
     useEffect(() => {
+        let animationFrameId: number;
         const handleMouseMove = (e: MouseEvent) => {
-            const { clientX, clientY } = e;
-            const x = (clientX / window.innerWidth - 0.5) * 40;
-            const y = (clientY / window.innerHeight - 0.5) * 40;
-            mouseX.set(x);
-            mouseY.set(y);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(() => {
+                const { clientX, clientY } = e;
+                const x = (clientX / window.innerWidth - 0.5) * 40;
+                const y = (clientY / window.innerHeight - 0.5) * 40;
+                mouseX.set(x);
+                mouseY.set(y);
+            });
         };
-        window.addEventListener("mousemove", handleMouseMove);
-        return () => window.removeEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mousemove", handleMouseMove, { passive: true });
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        };
     }, [mouseX, mouseY]);
 
     const rotateX = useTransform(dy, [-20, 20], [5, -5]);
@@ -37,32 +44,34 @@ export const HeroSection = () => {
 
     return (
         <section className="relative min-h-screen pt-32 pb-20 flex flex-col items-center justify-center overflow-hidden bg-transparent">
-            {/* ── Vivid animated brain fills entire background ── */}
-            <NeuralBrain />
+            {/* ── Auto Color Shifting Background ── */}
+            <div className="absolute inset-0 pointer-events-none z-[1] animate-hue-shift">
+                <NeuralBrain />
 
-            {/* ── Synced ambient pulse rings (match brain 14s float cycle) ── */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1]">
-                {[1, 2, 3, 4, 5].map((ring) => (
-                    <div
-                        key={ring}
-                        className="absolute rounded-full border border-[#7C5CFF]/10"
-                        style={{
-                            width: `${30 + ring * 15}vw`,
-                            height: `${30 + ring * 15}vw`,
-                            animation: `pulse ${4 + ring * 1.5}s ease-in-out infinite`,
-                            animationDelay: `${ring * 0.6}s`,
-                            opacity: 0.4 - ring * 0.05,
-                        }}
-                    />
-                ))}
+                {/* ── Synced ambient pulse rings ── */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    {[1, 2, 3, 4, 5].map((ring) => (
+                        <div
+                            key={ring}
+                            className="absolute rounded-full border border-[#7C5CFF]/10"
+                            style={{
+                                width: `${30 + ring * 15}vw`,
+                                height: `${30 + ring * 15}vw`,
+                                animation: `pulse ${4 + ring * 1.5}s ease-in-out infinite`,
+                                animationDelay: `${ring * 0.6}s`,
+                                opacity: 0.4 - ring * 0.05,
+                            }}
+                        />
+                    ))}
+                </div>
+
+                {/* ── Main center glow disk ── */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] h-[100vh] bg-[#7C5CFF]/[0.05] rounded-full blur-[80px]" />
+                {/* Left lobe accent glow */}
+                <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vh] bg-[#5B6CFF]/[0.03] rounded-full blur-[60px]" />
+                {/* Right lobe accent glow */}
+                <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vh] bg-[#8B5CF6]/[0.03] rounded-full blur-[60px]" />
             </div>
-
-            {/* ── Main center glow disk ── */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] h-[100vh] bg-[#7C5CFF]/[0.05] rounded-full blur-[160px] pointer-events-none z-[1]" />
-            {/* Left lobe accent glow */}
-            <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vh] bg-[#5B6CFF]/[0.03] rounded-full blur-[120px] pointer-events-none z-[1]" />
-            {/* Right lobe accent glow */}
-            <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vh] bg-[#8B5CF6]/[0.03] rounded-full blur-[120px] pointer-events-none z-[1]" />
 
             <motion.div
                 style={{
@@ -98,7 +107,7 @@ export const HeroSection = () => {
                                 delay: 0.08 * i,
                                 ease: [0.2, 0.8, 0.2, 1]
                             }}
-                            className="inline-block will-change-[transform,opacity,filter]"
+                            className="inline-block"
                         >
                             {word === "Mental" || word === "Support" ? (
                                 <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#7C5CFF] to-[#5B6CFF] drop-shadow-[0_0_20px_rgba(124,92,255,0.2)]">
@@ -116,7 +125,7 @@ export const HeroSection = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1, delay: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
-                    className="text-base md:text-lg lg:text-xl text-[#9DA7B3] mb-10 max-w-xl mx-auto leading-relaxed font-light will-change-[transform,opacity]"
+                    className="text-base md:text-lg lg:text-xl text-[#9DA7B3] mb-10 max-w-xl mx-auto leading-relaxed font-light"
                 >
                     MindCare merges <span className="text-white font-medium italic">neural-precision</span> with deep human empathy to build a sanctuary for your mind.
                 </motion.p>
@@ -126,7 +135,7 @@ export const HeroSection = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1, delay: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-5 w-full will-change-[transform,opacity]"
+                    className="flex flex-col sm:flex-row items-center justify-center gap-5 w-full"
                 >
                     <Link href="/signup" className="w-full sm:w-auto">
                         <motion.button

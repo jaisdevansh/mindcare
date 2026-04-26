@@ -6,6 +6,9 @@ import {
     getAssignmentHistory,
     getEmotionLogs,
     getLatestResult,
+    startDynamicAssessment,
+    getNextQuestion,
+    submitDynamicAssessment,
 } from './assignment.controller';
 
 const router = Router();
@@ -17,6 +20,14 @@ router.post('/submit', authenticate, (req, res, next) => {
     res.setTimeout(120000);
     next();
 }, submitAssignment);
+
+// Dynamic Assessment Routes
+router.post('/dynamic/start', authenticate, startDynamicAssessment);
+router.post('/dynamic/next', authenticate, getNextQuestion);
+router.post('/dynamic/submit', authenticate, (req, res, next) => {
+    res.setTimeout(120000);
+    next();
+}, submitDynamicAssessment);
 
 router.get('/history', authenticate, getAssignmentHistory);
 router.get('/emotion-logs', authenticate, getEmotionLogs);

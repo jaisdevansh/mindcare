@@ -14,6 +14,9 @@ import communityRoutes from './modules/community/post.routes';
 import chatRoutes from './modules/chat/chat.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import assignmentRoutes from './modules/assignment/assignment.routes';
+import paymentRoutes from './modules/payment/payment.routes';
+import contactRoutes from './modules/contact/contact.routes';
+import notificationRoutes from './modules/notifications/notification.routes';
 
 import { errorHandler } from './utils/error';
 
@@ -59,6 +62,9 @@ app.use('/community', communityRoutes);
 app.use('/chat', chatRoutes);
 app.use('/ai', aiRoutes);
 app.use('/assignment', assignmentRoutes);
+app.use('/payment', paymentRoutes);
+app.use('/contact', contactRoutes);
+app.use('/notifications', notificationRoutes);
 
 app.use(errorHandler);
 

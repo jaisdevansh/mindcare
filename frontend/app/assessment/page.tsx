@@ -5,23 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { assignmentService } from '@/lib/services/assignment.service';
+import { dynamicAssessmentService } from '@/lib/services/dynamicAssessment.service';
 import { useAppStore } from '@/lib/store';
 import toast from 'react-hot-toast';
 import {
     Brain, ChevronRight, ChevronLeft, Loader2, CheckCircle2,
     AlertTriangle, Heart, Sparkles, Activity, Wind, Dumbbell,
-    Users, ArrowRight, RotateCcw, PenLine, ListChecks
+    Users, ArrowRight, RotateCcw, Zap, PenLine, ListChecks
 } from 'lucide-react';
+import { getMoodIcon, getMoodColor } from '@/lib/moodIcons';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────────
 
 type Mode = 'descriptive' | 'mcq';
-
-interface Question {
-    id: number;
-    question: string;
-    options?: string[]; // only for MCQ
-}
 
 interface AnalysisResult {
     mood: string;
@@ -40,9 +36,7 @@ interface AnalysisResult {
 
 // ─── MOOD EMOJI MAP ──────────────────────────────────────────────────────────
 
-const MOOD_EMOJI: Record<string, string> = {
-    happy: '😊', neutral: '😐', sad: '😔', stressed: '😤', anxious: '😰', burnout: '🥵'
-};
+// Removed - now using Lucide icons from moodIcons.tsx
 
 const RISK_COLORS: Record<string, string> = {
     Low: 'text-emerald-400',
@@ -124,13 +118,19 @@ export default function AssessmentPage() {
     const { setRiskScore } = useAppStore();
 
     const [mode, setMode] = useState<Mode | null>(null);
-    const [questions, setQuestions] = useState<Question[]>([]);
-    const [answers, setAnswers] = useState<string[]>(Array(10).fill(''));
-    // steps: 0=intro, 1=mode-select, 2..11=questions, 12=result
+    // steps: 0=intro, 1=mode-select, 2=dynamic-questions, 3=result
     const [currentStep, setCurrentStep] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<AnalysisResult | null>(null);
     const [loadingText, setLoadingText] = useState('Analyzing your responses...');
+
+    // Dynamic assessment state (used by both modes)
+    const [sessionId, setSessionId] = useState<string>('');
+    const [currentQuestion, setCurrentQuestion] = useState<string>('');
+    const [currentAnswer, setCurrentAnswer] = useState<string>('');
+    const [currentOptions, setCurrentOptions] = useState<string[]>([]); // For MCQ mode
+    const [questionNumber, setQuestionNumber] = useState<number>(1);
+    const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
     // Auto-scroll to top when step changes
     useEffect(() => {
@@ -142,70 +142,123 @@ export default function AssessmentPage() {
         }
     }, [currentStep]);
 
-    const fetchQuestions = async (selectedMode: Mode) => {
-        try {
-            const res = await assignmentService.getQuestions(selectedMode);
-            if (res.success) setQuestions(res.data.questions || res.data);
-        } catch {
-            toast.error('Failed to load questions. Please refresh.');
-        }
-    };
+    const totalQuestions = 10;
+    const progress = currentStep === 0 || currentStep === 1 ? 0
+        : currentStep === 3 ? 100
+            : (questionNumber / totalQuestions) * 100;
 
+    // Handle mode selection - Start dynamic assessment for selected mode
     const handleModeSelect = (selectedMode: Mode) => {
         setMode(selectedMode);
-        fetchQuestions(selectedMode);
-        setCurrentStep(2); // jump to first question
+        startDynamicAssessment(selectedMode);
     };
 
-    const questionIndex = currentStep - 2; // questions start at step 2
-    const totalQuestions = 10;
-    const progress = currentStep <= 1 ? 0
-        : currentStep >= 12 ? 100
-            : ((questionIndex + 1) / totalQuestions) * 100;
-
-    const handleNext = () => {
-        if (currentStep >= 2 && currentStep <= 11) {
-            if (!answers[questionIndex]?.trim()) {
-                toast.error(mode === 'mcq' ? 'Please select an option to continue.' : 'Please share your thoughts before continuing.');
-                return;
+    // Start dynamic assessment (both modes use this)
+    const startDynamicAssessment = async (selectedMode: Mode) => {
+        setIsLoading(true);
+        try {
+            const res = await dynamicAssessmentService.start();
+            if (res.success) {
+                setSessionId(res.data.sessionId);
+                setCurrentQuestion(res.data.question);
+                
+                // For MCQ mode, generate options from the question
+                if (selectedMode === 'mcq') {
+                    setCurrentOptions(res.data.options || [
+                        'Strongly Agree',
+                        'Agree',
+                        'Neutral',
+                        'Disagree',
+                        'Strongly Disagree'
+                    ]);
+                }
+                
+                setQuestionNumber(1);
+                setCurrentStep(2); // Go to question screen
+                toast.success(`${selectedMode === 'mcq' ? 'MCQ' : 'Descriptive'} Assessment started!`);
+            } else {
+                toast.error(res.message || 'Failed to start assessment');
             }
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to start assessment');
+        } finally {
+            setIsLoading(false);
         }
-        setCurrentStep(prev => prev + 1);
     };
 
-    const handleBack = () => setCurrentStep(prev => Math.max(0, prev - 1));
-
-    const handleSubmit = async () => {
-        if (!answers[totalQuestions - 1]?.trim()) {
-            toast.error('Please answer the final question.');
+    // Answer and get next question (both modes use this)
+    const handleDynamicNext = async () => {
+        if (!currentAnswer.trim()) {
+            toast.error('Please provide an answer to continue');
             return;
         }
 
         setIsLoading(true);
+        try {
+            const res = await dynamicAssessmentService.answerAndGetNext(sessionId, currentAnswer);
+            
+            if (res.success) {
+                if (res.data.isCompleted) {
+                    // All 10 questions answered, auto submit!
+                    setIsCompleted(true);
+                    toast.success('All questions answered! Analyzing...');
+                    handleDynamicSubmit();
+                } else {
+                    // Show next question
+                    setCurrentQuestion(res.data.question);
+                    setQuestionNumber(res.data.questionNumber);
+                    setCurrentAnswer(''); // Clear input for next question
+                    
+                    // For MCQ, keep same options (or update if backend sends new ones)
+                    if (mode === 'mcq') {
+                        setCurrentOptions(res.data.options || [
+                            'Strongly Agree',
+                            'Agree',
+                            'Neutral',
+                            'Disagree',
+                            'Strongly Disagree'
+                        ]);
+                    }
+                }
+            } else {
+                toast.error(res.message || 'Failed to get next question');
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to get next question');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Submit dynamic assessment
+    const handleDynamicSubmit = async () => {
+        setIsLoading(true);
         const loadingMessages = [
-            'Analyzing your emotional state...',
-            'Detecting mood patterns with AI...',
-            'Calculating mental wellness score...',
-            'Generating personalized guidance...',
-            'Preparing your wellness report...',
+            'Analyzing your 10 responses...',
+            'Connecting the dots based on your answers...',
+            'Detecting your unique mood patterns...',
+            'Crafting highly personalized insights...',
+            'Preparing your custom AI report...',
         ];
         let idx = 0;
         const interval = setInterval(() => {
             idx = (idx + 1) % loadingMessages.length;
             setLoadingText(loadingMessages[idx]);
-        }, 1800);
+        }, 2000);
 
         try {
-            const res = await assignmentService.submitAnswers(answers.slice(0, totalQuestions));
+            const res = await dynamicAssessmentService.submit(sessionId);
+            
             if (res.success) {
                 setResult(res.data);
                 setRiskScore(res.data.depressionScore);
-                setCurrentStep(12);
+                setCurrentStep(3); // Show results
+                toast.success('Analysis complete!');
             } else {
-                toast.error(res.message || 'Submission failed.');
+                toast.error(res.message || 'Failed to analyze assessment');
             }
-        } catch (err: any) {
-            toast.error(err.message || 'Something went wrong.');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to analyze assessment');
         } finally {
             clearInterval(interval);
             setIsLoading(false);
@@ -213,31 +266,42 @@ export default function AssessmentPage() {
     };
 
     const handleRetake = () => {
-        setAnswers(Array(10).fill(''));
         setCurrentStep(0);
         setResult(null);
         setMode(null);
-        setQuestions([]);
+        // Reset dynamic state
+        setSessionId('');
+        setCurrentQuestion('');
+        setCurrentAnswer('');
+        setCurrentOptions([]);
+        setQuestionNumber(1);
+        setIsCompleted(false);
+    };
+
+    const handleBack = () => {
+        setCurrentStep(prev => Math.max(0, prev - 1));
     };
 
     return (
         <div className="w-full max-w-3xl mx-auto min-h-full flex flex-col py-0.5 md:py-2">
 
             {/* Progress Bar */}
-            {currentStep >= 2 && currentStep < 12 && (
+            {currentStep === 2 && !isCompleted && (
                 <div className="mb-4">
                     <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
                         <span className="flex items-center gap-2">
-                            {mode === 'mcq'
-                                ? <><ListChecks className="w-3 h-3" /> MCQ Mode</>
-                                : <><PenLine className="w-3 h-3" /> Descriptive Mode</>}
-                            &nbsp;· Question {questionIndex + 1} of {totalQuestions}
+                            {mode === 'mcq' ? (
+                                <><ListChecks className="w-3 h-3" /> AI Dynamic MCQ</>
+                            ) : (
+                                <><PenLine className="w-3 h-3" /> AI Dynamic Descriptive</>
+                            )}
+                            &nbsp;· Question {questionNumber} of {totalQuestions}
                         </span>
                         <span>{Math.round(progress)}% complete</span>
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                         <motion.div
-                            className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
                             animate={{ width: `${progress}%` }}
                             transition={{ duration: 0.4 }}
                         />
@@ -327,24 +391,24 @@ export default function AssessmentPage() {
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 transition={{ delay: 0.1 }}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-300 text-xs font-bold uppercase tracking-widest mb-5"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-300 text-xs font-bold uppercase tracking-widest mb-5"
                             >
-                                <Sparkles className="w-3 h-3" /> Choose Your Style
+                                <Zap className="w-3 h-3" /> AI-Powered Dynamic Assessment
                             </motion.div>
                             <h2 className="text-3xl md:text-4xl font-black text-white mb-3 tracking-tight">
-                                How would you like to answer?
+                                Choose Your Answer Style
                             </h2>
                             <p className="text-slate-400 font-medium max-w-md mx-auto">
-                                Both modes analyze your mental wellness with the same AI — pick whatever feels more comfortable.
+                                Both modes use <span className="text-blue-400 font-bold">AI to adapt questions</span> based on your answers. Pick your preferred input style.
                             </p>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
                             <ModeCard
                                 icon={PenLine}
                                 title="Descriptive"
-                                description="Type your honest thoughts in free-form text. Great for expressing complex emotions and nuanced feelings."
-                                badge="Open-ended"
+                                description="Type your thoughts freely. AI adapts each question based on what you write. Best for detailed expression."
+                                badge="AI DYNAMIC · TEXT"
                                 gradient="from-indigo-500/15 to-violet-600/10"
                                 borderColor="border-indigo-500/30 hover:border-indigo-400/60"
                                 onClick={() => handleModeSelect('descriptive')}
@@ -352,10 +416,10 @@ export default function AssessmentPage() {
                             <ModeCard
                                 icon={ListChecks}
                                 title="MCQ"
-                                description="Choose from multiple options for each question. Fast, simple, and perfect if you prefer structured answers."
-                                badge="Multiple Choice"
-                                gradient="from-violet-500/15 to-pink-600/10"
-                                borderColor="border-violet-500/30 hover:border-violet-400/60"
+                                description="Select from options. AI adapts each question based on your choices. Quick and structured."
+                                badge="AI DYNAMIC · CHOICE"
+                                gradient="from-blue-500/15 to-cyan-600/10"
+                                borderColor="border-blue-500/30 hover:border-blue-400/60"
                                 onClick={() => handleModeSelect('mcq')}
                             />
                         </div>
@@ -369,10 +433,10 @@ export default function AssessmentPage() {
                     </motion.div>
                 )}
 
-                {/* ─── QUESTION SCREENS ─────────────────────────────────────── */}
-                {currentStep >= 2 && currentStep <= 11 && questions[questionIndex] && (
+                {/* ─── DYNAMIC QUESTION SCREEN (Both Modes) ─────────────────────────────────────── */}
+                {currentStep === 2 && !isCompleted && (
                     <motion.div
-                        key={`q-${currentStep}`}
+                        key={`dynamic-q-${questionNumber}`}
                         initial={{ opacity: 0, x: 40 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -40 }}
@@ -380,46 +444,46 @@ export default function AssessmentPage() {
                         className="flex-1"
                     >
                         <div className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-[60px] -mr-24 -mt-24" />
+                            <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full blur-[60px] -mr-24 -mt-24" />
 
                             <div className="relative z-10">
                                 <div className="flex items-center gap-3 mb-5">
-                                    <span className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-lg">
-                                        {questionIndex + 1}
+                                    <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center text-white font-black text-sm shadow-lg">
+                                        {questionNumber}
                                     </span>
                                     <span className="text-slate-500 text-sm font-semibold tracking-widest uppercase">
-                                        Question {questionIndex + 1} / {totalQuestions}
+                                        Question {questionNumber} / {totalQuestions}
                                     </span>
-                                    <span className={`ml-auto text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${mode === 'mcq' ? 'bg-violet-500/10 border-violet-500/30 text-violet-300' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'}`}>
-                                        {mode === 'mcq' ? 'MCQ' : 'Descriptive'}
+                                    <span className={`ml-auto text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border flex items-center gap-1.5 ${
+                                        mode === 'mcq' 
+                                            ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+                                            : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
+                                    }`}>
+                                        <Zap className="w-3 h-3" /> AI {mode === 'mcq' ? 'MCQ' : 'Descriptive'}
                                     </span>
                                 </div>
 
                                 <h2 className="text-xl md:text-2xl font-bold text-white mb-6 leading-tight">
-                                    {questions[questionIndex].question}
+                                    {currentQuestion}
                                 </h2>
 
-                                {/* ── MCQ OPTIONS ──────────────────────────────── */}
-                                {mode === 'mcq' && questions[questionIndex].options ? (
+                                {/* MCQ Options */}
+                                {mode === 'mcq' ? (
                                     <div className="space-y-3">
-                                        {questions[questionIndex].options!.map((opt, optIdx) => {
-                                            const isSelected = answers[questionIndex] === opt;
+                                        {currentOptions.map((opt, optIdx) => {
+                                            const isSelected = currentAnswer === opt;
                                             return (
                                                 <motion.button
                                                     key={optIdx}
                                                     whileHover={{ scale: 1.01 }}
                                                     whileTap={{ scale: 0.99 }}
-                                                    onClick={() => {
-                                                        const updated = [...answers];
-                                                        updated[questionIndex] = opt;
-                                                        setAnswers(updated);
-                                                    }}
+                                                    onClick={() => setCurrentAnswer(opt)}
                                                     className={`w-full text-left px-4 py-3 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 font-medium text-sm ${isSelected
-                                                        ? 'bg-indigo-600/25 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
+                                                        ? 'bg-blue-600/25 border-blue-500 text-white shadow-lg shadow-blue-500/10'
                                                         : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/30 hover:bg-white/[0.07]'
                                                         }`}
                                                 >
-                                                    <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? 'border-indigo-400 bg-indigo-500' : 'border-white/20'
+                                                    <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? 'border-blue-400 bg-blue-500' : 'border-white/20'
                                                         }`}>
                                                         {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                                                     </span>
@@ -429,46 +493,45 @@ export default function AssessmentPage() {
                                         })}
                                     </div>
                                 ) : (
-                                    /* ── DESCRIPTIVE TEXTAREA ─────────────────── */
+                                    /* Descriptive Textarea */
                                     <textarea
-                                        value={answers[questionIndex]}
-                                        onChange={e => {
-                                            const updated = [...answers];
-                                            updated[questionIndex] = e.target.value;
-                                            setAnswers(updated);
-                                        }}
+                                        value={currentAnswer}
+                                        onChange={e => setCurrentAnswer(e.target.value)}
                                         rows={4}
                                         autoFocus
+                                        placeholder="Share your honest thoughts here... The AI will adapt the next question based on your answer."
                                         className="w-full bg-white/5 border border-white/10 focus:border-indigo-500/60 rounded-2xl p-5 text-white text-base placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none transition-all backdrop-blur-md"
-                                        placeholder="Share your honest feelings here... There are no wrong answers."
                                     />
                                 )}
 
                                 <div className="flex justify-between items-center mt-6">
                                     <button
-                                        type="button"
                                         onClick={handleBack}
-                                        className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors font-semibold text-sm"
+                                        className="text-slate-400 hover:text-white text-sm font-semibold transition-all flex items-center gap-1 group"
                                     >
-                                        <ChevronLeft className="w-4 h-4" /> Back
+                                        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                                        Back
                                     </button>
-
-                                    {currentStep < 11 ? (
-                                        <Button
-                                            onClick={handleNext}
-                                            className="h-12 px-8 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-bold flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-600/30"
-                                        >
-                                            Next <ChevronRight className="w-4 h-4" />
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            onClick={handleSubmit}
-                                            disabled={isLoading}
-                                            className="h-12 px-10 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl font-bold flex items-center gap-2 transition-all active:scale-95 shadow-xl shadow-indigo-600/30"
-                                        >
-                                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-4 h-4" /> Analyze with AI</>}
-                                        </Button>
-                                    )}
+                                    <Button
+                                        onClick={handleDynamicNext}
+                                        disabled={isLoading || !currentAnswer.trim()}
+                                        className={`h-12 px-8 rounded-2xl font-bold flex items-center gap-2 transition-all active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                                            mode === 'mcq'
+                                                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 shadow-blue-600/30'
+                                                : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-indigo-600/30'
+                                        }`}
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                Generating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Next Question <ChevronRight className="w-4 h-4" />
+                                            </>
+                                        )}
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -483,21 +546,34 @@ export default function AssessmentPage() {
                         animate={{ opacity: 1 }}
                         className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50"
                     >
-                        <div className="text-center p-8">
+                        <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 md:p-14 backdrop-blur-xl shadow-2xl max-w-lg w-[90%] text-center relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px] -mr-32 -mt-32" />
+                            <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-[80px] -ml-32 -mb-32" />
+                            
                             <motion.div
                                 animate={{ rotate: 360 }}
                                 transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
-                                className="w-20 h-20 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 mx-auto mb-6"
+                                className="w-24 h-24 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 mx-auto mb-8 relative z-10 shadow-[0_0_40px_rgba(99,102,241,0.3)]"
                             />
-                            <motion.p key={loadingText} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-white text-lg font-bold">
+                            
+                            <motion.h3 
+                                key={loadingText} 
+                                initial={{ opacity: 0, y: 5 }} 
+                                animate={{ opacity: 1, y: 0 }} 
+                                className="text-white text-xl md:text-2xl font-black tracking-tight mb-3 relative z-10"
+                            >
                                 {loadingText}
-                            </motion.p>
+                            </motion.h3>
+                            
+                            <p className="text-slate-400 font-medium text-sm relative z-10">
+                                Based strictly on your 10 unique answers, the AI is crafting a highly personalized wellness report. Please wait...
+                            </p>
                         </div>
                     </motion.div>
                 )}
 
                 {/* ─── RESULT SCREEN ─────────────────────────────────────────── */}
-                {currentStep === 12 && result && (
+                {currentStep === 3 && result && (
                     <motion.div
                         key="result"
                         initial={{ opacity: 0, y: 30 }}
@@ -515,7 +591,11 @@ export default function AssessmentPage() {
                                     <p className={`text-xs font-black mt-1 ${RISK_COLORS[result.riskLevel]} uppercase tracking-widest`}>{result.mentalScoreCategory}</p>
                                 </div>
                                 <div className="flex-1 text-center md:text-left">
-                                    <div className="text-6xl mb-3">{MOOD_EMOJI[result.mood] || '🧠'}</div>
+                                    <div className="flex items-center justify-center md:justify-start mb-3">
+                                        <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                            {getMoodIcon(result.mood, 'w-8 h-8')}
+                                        </div>
+                                    </div>
                                     <h2 className="text-3xl font-black text-white mb-2 capitalize">{result.mood} Mood Detected</h2>
                                     <p className="text-slate-400 font-medium text-lg">
                                         Confidence: <span className="text-white font-bold">{result.confidenceScore}%</span>
@@ -531,8 +611,12 @@ export default function AssessmentPage() {
                                         <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/10 text-sm font-bold text-white">
                                             Score: {result.depressionScore}/100
                                         </div>
-                                        <div className={`px-4 py-2 rounded-xl border text-sm font-bold capitalize ${mode === 'mcq' ? 'bg-violet-500/10 border-violet-500/20 text-violet-300' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'}`}>
-                                            {mode === 'mcq' ? '📋 MCQ Mode' : '✍️ Descriptive Mode'}
+                                        <div className={`px-4 py-2 rounded-xl border text-sm font-bold flex items-center gap-1.5 ${
+                                            mode === 'mcq'
+                                                ? 'bg-blue-500/10 border-blue-500/20 text-blue-300'
+                                                : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
+                                        }`}>
+                                            <Zap className="w-3.5 h-3.5" /> AI {mode === 'mcq' ? 'MCQ' : 'Descriptive'}
                                         </div>
                                     </div>
                                 </div>

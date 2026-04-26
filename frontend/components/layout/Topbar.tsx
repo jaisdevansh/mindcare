@@ -5,18 +5,110 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { Bell, LogOut, Shield } from 'lucide-react';
 import { getPublicUrl } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { requestNotificationPermission } from '@/lib/fcm';
+import { onMessage } from 'firebase/messaging';
+import { messaging } from '@/lib/firebase';
+import toast from 'react-hot-toast';
+import { notificationService, Notification } from '@/lib/services/notification.service';
+import { formatDistanceToNow } from 'date-fns';
 
 export const Topbar = () => {
     const { user, viewingRole, setViewingRole, logout } = useAppStore();
     const router = useRouter();
     const pathname = usePathname();
+    const [notifications, setNotifications] = React.useState<Notification[]>([]);
+    const [unreadCount, setUnreadCount] = React.useState(0);
+    const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+    const dropdownRef = React.useRef<HTMLDivElement>(null);
 
     const isAdmin = viewingRole === 'admin';
 
     const handleLogout = () => {
         logout();
         router.push('/login');
+    };
+
+    React.useEffect(() => {
+        if (user && user.id) {
+            // Fetch backend notifications
+            const fetchNotifications = async () => {
+                try {
+                    const res = await notificationService.getNotifications();
+                    if (res.success) {
+                        setNotifications(res.data.notifications);
+                        setUnreadCount(res.data.unreadCount);
+                    }
+                } catch (e) {
+                    console.error('Error fetching notifications:', e);
+                }
+            };
+            fetchNotifications();
+
+            // Request push notification permissions
+            requestNotificationPermission().then(token => {
+                if (token) {
+                    console.log("Got FCM token for user", user.id);
+                }
+            });
+
+            // Listen for foreground messages
+            const setupForegroundListener = async () => {
+                const msg = await messaging();
+                if (msg) {
+                    onMessage(msg, (payload) => {
+                        console.log("Foreground notification received:", payload);
+                        fetchNotifications(); // Refresh list
+                        toast.custom((t) => (
+                            <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-[#1A0F0E] shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-[#3D2B1F]/40 cursor-pointer`}
+                                onClick={() => {
+                                    toast.dismiss(t.id);
+                                    if(payload.data?.link) router.push(payload.data.link);
+                                }}>
+                                <div className="flex-1 w-0 p-4">
+                                    <div className="flex items-start">
+                                        <div className="ml-3 flex-1">
+                                            <p className="text-sm font-medium text-white">{payload.notification?.title}</p>
+                                            <p className="mt-1 text-sm text-slate-400">{payload.notification?.body}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ), { duration: 5000, position: 'top-right' });
+                    });
+                }
+            };
+            setupForegroundListener();
+        }
+    }, [user, router]);
+
+    // Close dropdown on outside click
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleNotificationClick = async (notif: Notification) => {
+        if (!notif.read) {
+            await notificationService.markAsRead(notif._id);
+            setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, read: true } : n));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+        if (notif.link) {
+            router.push(notif.link);
+            setIsDropdownOpen(false);
+        }
+    };
+
+    const markAllRead = async () => {
+        await notificationService.markAllAsRead();
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        setUnreadCount(0);
     };
 
     // Page title from pathname
@@ -103,13 +195,68 @@ export const Topbar = () => {
             {/* Right: notifications + user */}
             <div className="flex items-center gap-4">
                 {/* Bell */}
-                <button className={`relative p-2 rounded-full border transition-all ${isAdmin
-                    ? 'bg-[#1A0F0E]/60 border-[#3D2B1F]/40 hover:bg-[#A67C52]/10'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10'
-                    }`}>
-                    <Bell className={`w-4 h-4 ${isAdmin ? 'text-[#A67C52]' : 'text-slate-300'}`} />
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)]" />
-                </button>
+                <div className="relative" ref={dropdownRef}>
+                    <button
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className={`relative p-2 rounded-full border transition-all ${isAdmin
+                            ? 'bg-[#1A0F0E]/60 border-[#3D2B1F]/40 hover:bg-[#A67C52]/10'
+                            : 'bg-white/5 border-white/10 hover:bg-white/10'
+                            }`}>
+                        <Bell className={`w-4 h-4 ${isAdmin ? 'text-[#A67C52]' : 'text-slate-300'}`} />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)] border border-black" />
+                        )}
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    <AnimatePresence>
+                        {isDropdownOpen && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute right-0 mt-3 w-80 bg-[#1A0F0E] border border-white/10 shadow-2xl rounded-2xl overflow-hidden z-50 flex flex-col"
+                            >
+                                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                                    <h3 className="font-bold text-white text-sm">Notifications</h3>
+                                    {unreadCount > 0 && (
+                                        <button onClick={markAllRead} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">
+                                            Mark all read
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="max-h-80 overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-400 text-sm">
+                                            No new notifications
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col divide-y divide-white/5">
+                                            {notifications.map((notif) => (
+                                                <div
+                                                    key={notif._id}
+                                                    onClick={() => handleNotificationClick(notif)}
+                                                    className={`p-4 hover:bg-white/[0.04] transition-colors cursor-pointer relative ${!notif.read ? 'bg-white/[0.02]' : ''}`}
+                                                >
+                                                    {!notif.read && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.5)]" />}
+                                                    <div className={`pl-3 ${!notif.read ? 'opacity-100' : 'opacity-60'}`}>
+                                                        <h4 className="text-sm font-bold text-white mb-0.5">{notif.title}</h4>
+                                                        <p className="text-xs text-slate-300 leading-relaxed mb-1.5">{notif.message}</p>
+                                                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
+                                                            {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
 
                 {/* User info */}
                 <div className={`flex items-center gap-3 pl-4 border-l ${isAdmin ? 'border-[#3D2B1F]/40' : 'border-white/10'}`}>

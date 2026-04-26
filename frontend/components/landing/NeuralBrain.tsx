@@ -233,13 +233,6 @@ export const NeuralBrain = () => {
                         <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.12" />
                         <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
                     </radialGradient>
-                    <filter id="nodeBlur">
-                        <feGaussianBlur stdDeviation="0.4" />
-                    </filter>
-                    <filter id="lineGlow">
-                        <feGaussianBlur stdDeviation="0.2" result="blur" />
-                        <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                    </filter>
                 </defs>
 
                 {/* ── Ambient glow blobs (Scaled up) ── */}
@@ -261,7 +254,7 @@ export const NeuralBrain = () => {
                     if (!f || !t) return null;
                     const isCore = (from <= 3 || to <= 3);
                     return (
-                        <g key={`conn-${i}`} filter={isCore ? "url(#lineGlow)" : undefined}>
+                        <g key={`conn-${i}`}>
                             {/* Base structure line */}
                             <line
                                 x1={f.x} y1={f.y} x2={t.x} y2={t.y}
@@ -290,7 +283,6 @@ export const NeuralBrain = () => {
                         <circle
                             cx={node.x} cy={node.y} r={node.size * 2.5}
                             fill={node.color} opacity="0.06"
-                            filter="url(#nodeBlur)"
                             className="brain-node"
                             style={{ animationDelay: `${node.delay}s` }}
                         />
