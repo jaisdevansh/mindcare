@@ -59,6 +59,22 @@ app.get(['/health', '/healthy'], (req, res) => {
     res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+    res.status(200).json({ 
+        message: 'MindCare Backend API', 
+        status: 'running',
+        version: '1.0.0',
+        endpoints: {
+            health: '/health',
+            auth: '/auth',
+            users: '/users',
+            ai: '/ai',
+            chat: '/chat'
+        }
+    });
+});
+
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/helpers', helperRoutes);
@@ -70,6 +86,15 @@ app.use('/assignment', assignmentRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/contact', contactRoutes);
 app.use('/notifications', notificationRoutes);
+
+// Catch-all route for undefined endpoints
+app.use('*', (req, res) => {
+    res.status(404).json({ 
+        error: 'Route not found', 
+        message: `Cannot ${req.method} ${req.originalUrl}`,
+        availableRoutes: ['/auth', '/users', '/ai', '/chat', '/health']
+    });
+});
 
 app.use(errorHandler);
 
