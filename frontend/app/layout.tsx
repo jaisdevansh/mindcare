@@ -18,6 +18,13 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "MindCare | Talk. Track. Heal.",
   description: "AI-powered emotional wellness platform. Track your mood, chat with AI, and connect with anonymous human helpers.",
+  icons: {
+    icon: [
+      { url: '/logo.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    apple: '/logo.svg',
+  },
 };
 
 export default function RootLayout({

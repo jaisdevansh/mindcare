@@ -200,39 +200,74 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
 export const googleAuth = passport.authenticate('google', { scope: ['profile', 'email'] });
 
 export const googleCallback = (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate('google', { session: false }, (err: any, user: any) => {
-        if (err || !user) {
-            return res.redirect(`${env.frontendUrl}/login?error=auth_failed`);
+    console.log('Google OAuth callback initiated');
+    passport.authenticate('google', { session: false }, (err: any, user: any, info: any) => {
+        console.log('Google OAuth callback result:', { err: err?.message, user: user?._id, info });
+        
+        if (err) {
+            console.error('Google OAuth Error:', err);
+            return res.redirect(`${env.frontendUrl}/login?error=oauth_error&message=${encodeURIComponent(err.message || 'OAuth failed')}`);
         }
-        const payload = { id: user._id, role: user.role };
-        const token = jwt.sign(payload, env.jwtSecret, { expiresIn: '7d' });
-        res.redirect(`${env.frontendUrl}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            profileImage: user.profileImage
-        }))}`);
+        if (!user) {
+            console.error('Google OAuth: No user returned', info);
+            return res.redirect(`${env.frontendUrl}/login?error=auth_failed&message=${encodeURIComponent(info?.message || 'Authentication failed')}`);
+        }
+        
+        try {
+            const payload = { id: user._id, role: user.role };
+            const token = jwt.sign(payload, env.jwtSecret, { expiresIn: '7d' });
+            
+            const userInfo = {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                profileImage: user.profileImage
+            };
+            
+            console.log('Google OAuth success, redirecting with token');
+            res.redirect(`${env.frontendUrl}/login?token=${token}&user=${encodeURIComponent(JSON.stringify(userInfo))}`);
+        } catch (error) {
+            console.error('Google Callback Error:', error);
+            res.redirect(`${env.frontendUrl}/login?error=token_error&message=${encodeURIComponent('Token generation failed')}`);
+        }
     })(req, res, next);
 };
 
 export const githubAuth = passport.authenticate('github', { scope: ['user:email'] });
 
 export const githubCallback = (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate('github', { session: false }, (err: any, user: any) => {
-        if (err || !user) {
-            console.error('GitHub Strategy Error or No User:', err);
-            return res.redirect(`${env.frontendUrl}/login?error=auth_failed`);
+    console.log('GitHub OAuth callback initiated');
+    passport.authenticate('github', { session: false }, (err: any, user: any, info: any) => {
+        console.log('GitHub OAuth callback result:', { err: err?.message, user: user?._id, info });
+        
+        if (err) {
+            console.error('GitHub OAuth Error:', err);
+            return res.redirect(`${env.frontendUrl}/login?error=oauth_error&message=${encodeURIComponent(err.message || 'OAuth failed')}`);
         }
-        const payload = { id: user._id, role: user.role };
-        const token = jwt.sign(payload, env.jwtSecret, { expiresIn: '7d' });
-        res.redirect(`${env.frontendUrl}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            profileImage: user.profileImage
-        }))}`);
+        if (!user) {
+            console.error('GitHub OAuth: No user returned', info);
+            return res.redirect(`${env.frontendUrl}/login?error=auth_failed&message=${encodeURIComponent(info?.message || 'Authentication failed')}`);
+        }
+        
+        try {
+            const payload = { id: user._id, role: user.role };
+            const token = jwt.sign(payload, env.jwtSecret, { expiresIn: '7d' });
+            
+            const userInfo = {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                profileImage: user.profileImage
+            };
+            
+            console.log('GitHub OAuth success, redirecting with token');
+            res.redirect(`${env.frontendUrl}/login?token=${token}&user=${encodeURIComponent(JSON.stringify(userInfo))}`);
+        } catch (error) {
+            console.error('GitHub Callback Error:', error);
+            res.redirect(`${env.frontendUrl}/login?error=token_error&message=${encodeURIComponent('Token generation failed')}`);
+        }
     })(req, res, next);
 };
 

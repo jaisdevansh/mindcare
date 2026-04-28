@@ -34,9 +34,11 @@ function LoginContent() {
         const token = searchParams.get('token');
         const userStr = searchParams.get('user');
         const error = searchParams.get('error');
+        const message = searchParams.get('message');
 
         if (error) {
-            toast.error("Authentication failed. Please try again.");
+            const errorMessage = message ? decodeURIComponent(message) : "Authentication failed. Please try again.";
+            toast.error(errorMessage);
             router.replace('/login');
         } else if (token && userStr) {
             try {
@@ -47,6 +49,7 @@ function LoginContent() {
                 toast.success("Welcome to MindCare!");
                 router.push("/dashboard");
             } catch (err) {
+                console.error('OAuth parsing error:', err);
                 toast.error("An error occurred during social login.");
             }
         }

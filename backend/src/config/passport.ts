@@ -33,10 +33,12 @@ passport.use(
                     googleId: profile.id,
                     profileImage: profile.photos?.[0].value,
                     isVerified: true,
+                    role: 'user', // Ensure default role
                 });
 
                 done(null, user);
             } catch (error) {
+                console.error('Google Auth Error:', error);
                 done(error, undefined);
             }
         }
