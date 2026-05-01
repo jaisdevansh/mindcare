@@ -8,30 +8,34 @@ import toast from "react-hot-toast";
 
 export default function ApplicationReview() {
     const [apps, setApps] = useState<any[]>([]);
+    const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [selectedApp, setSelectedApp] = useState<any>(null);
     const [adminNote, setAdminNote] = useState("");
     const [actionLoading, setActionLoading] = useState(false);
+    const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
     useEffect(() => {
-        fetchApps();
+        fetchAll();
     }, []);
 
-    const fetchApps = async () => {
+    const fetchAll = async () => {
         try {
             setLoading(true);
-            const res = await adminService.getApplications();
-            if (res.success) {
-                setApps(res.data);
-            } else {
-                toast.error(res.message || "Failed to load applications");
-            }
+            const [appRes, statsRes] = await Promise.all([
+                adminService.getApplications(),
+                adminService.getDashboardStats()
+            ]);
+            if (appRes.success) setApps(appRes.data);
+            if (statsRes.success) setStats(statsRes.data);
         } catch {
             toast.error("Could not connect to server");
         } finally {
             setLoading(false);
         }
     };
+
+    const fetchApps = fetchAll;
 
     const handleAction = async (id: string, action: 'approve' | 'reject') => {
         try {
@@ -46,6 +50,8 @@ export default function ApplicationReview() {
                 setApps(prev => prev.map(a => a._id === id ? { ...a, status: newStatus } : a));
                 setSelectedApp((prev: any) => prev ? { ...prev, status: newStatus } : null);
                 setAdminNote("");
+                // Refresh stats
+                adminService.getDashboardStats().then(r => r.success && setStats(r.data));
             } else {
                 toast.error(res.message);
             }
@@ -56,7 +62,16 @@ export default function ApplicationReview() {
         }
     };
 
-    const pendingCount = apps.filter(a => a.status === 'pending').length;
+    const appCounts = React.useMemo(() => ({
+        all: apps.length,
+        pending: apps.filter(a => a.status === 'pending').length,
+        approved: apps.filter(a => a.status === 'approved').length,
+        rejected: apps.filter(a => a.status === 'rejected').length
+    }), [apps]);
+
+    const filtered = React.useMemo(() => 
+        apps.filter(a => filter === 'all' || a.status === filter)
+    , [apps, filter]);
 
     const statusColors: Record<string, string> = {
         pending: 'bg-orange-500/10 border-orange-500/20 text-orange-400',
@@ -65,58 +80,79 @@ export default function ApplicationReview() {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Applications list */}
-            <div className="lg:col-span-2 space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-lg font-black text-[#EDE0D4] flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-[#A67C52]" />
-                            Helper Requests
-                        </h2>
-                        {pendingCount > 0 && (
-                            <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest">
-                                {pendingCount} Pending
-                            </span>
-                        )}
-                    </div>
-                    <button
-                        onClick={fetchApps}
-                        disabled={loading}
-                        className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-[#1A0F0E]/60 border border-[#3D2B1F]/50 text-[#A67C52] text-xs font-bold hover:bg-[#A67C52]/10 transition-all"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </button>
-                </div>
+        <div className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'Total Users', value: stats?.totalUsers ?? '—', color: '#A67C52', icon: Activity },
+                    { label: 'Active Helpers', value: stats?.totalHelpers ?? '—', color: '#4ade80', icon: CheckCircle },
+                    { label: 'Pending Review', value: appCounts.pending, color: '#f97316', icon: Clock },
+                    { label: 'Rejected', value: appCounts.rejected, color: '#f87171', icon: AlertTriangle },
+                ].map((c, i) => (
+                    <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                        className="p-5 rounded-[1.5rem] bg-[#1A0F0E]/40 border border-[#3D2B1F]/40 backdrop-blur-md">
+                        <c.icon className="w-4 h-4 mb-3" style={{ color: c.color }} />
+                        <p className="text-3xl font-black text-[#EDE0D4]">{loading ? '—' : c.value}</p>
+                        <p className="text-[9px] text-[#A67C52]/50 font-black uppercase tracking-widest mt-1">{c.label}</p>
+                    </motion.div>
+                ))}
+            </div>
 
-                {/* List */}
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-24 gap-3">
-                        <RefreshCw className="w-8 h-8 text-[#A67C52] animate-spin" />
-                        <p className="text-[#A67C52]/50 text-sm">Loading applications…</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Applications list */}
+                <div className="lg:col-span-2 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-lg font-black text-[#EDE0D4] flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-[#A67C52]" />
+                                Helper Requests
+                            </h2>
+                            <div className="flex gap-1.5 ml-4">
+                                {(['all', 'pending', 'approved', 'rejected'] as const).map(f => (
+                                    <button key={f} onClick={() => setFilter(f)}
+                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filter === f ? 'bg-[#A67C52] text-white' : 'bg-[#1A0F0E]/40 border border-[#3D2B1F]/40 text-[#A67C52]/50 hover:text-[#A67C52]'}`}>
+                                        {f} {filter !== f && <span className="opacity-50">({appCounts[f]})</span>}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <button
+                            onClick={fetchApps}
+                            disabled={loading}
+                            className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-[#1A0F0E]/60 border border-[#3D2B1F]/50 text-[#A67C52] text-xs font-bold hover:bg-[#A67C52]/10 transition-all"
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
                     </div>
-                ) : apps.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 gap-3 border border-dashed border-[#3D2B1F]/40 rounded-[2rem] bg-[#1A0F0E]/10">
-                        <FileText className="w-12 h-12 text-[#3D2B1F]" />
-                        <p className="text-[#A67C52]/40 text-sm font-medium">No applications received yet.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        <AnimatePresence>
-                            {apps.map((app, i) => (
-                                <motion.button
-                                    key={app._id}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.05 }}
-                                    onClick={() => { setSelectedApp(app); setAdminNote(""); }}
-                                    className={`w-full p-5 rounded-[1.5rem] border flex items-center justify-between transition-all group text-left ${selectedApp?._id === app._id
-                                        ? 'bg-[#A67C52]/10 border-[#A67C52]/50 ring-2 ring-[#A67C52]/20'
-                                        : 'bg-[#1A0F0E]/40 border-[#3D2B1F]/40 hover:border-[#A67C52]/30 hover:bg-[#3D2B1F]/20'
-                                        }`}
-                                >
+
+                    {/* List */}
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-24 gap-3">
+                            <RefreshCw className="w-8 h-8 text-[#A67C52] animate-spin" />
+                            <p className="text-[#A67C52]/50 text-sm">Loading applications…</p>
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-24 gap-3 border border-dashed border-[#3D2B1F]/40 rounded-[2rem] bg-[#1A0F0E]/10">
+                            <FileText className="w-12 h-12 text-[#3D2B1F]" />
+                            <p className="text-[#A67C52]/40 text-sm font-medium">No {filter !== 'all' ? filter : ''} applications found.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <AnimatePresence>
+                                {filtered.map((app, i) => (
+                                    <motion.button
+                                        key={app._id}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        onClick={() => { setSelectedApp(app); setAdminNote(""); }}
+                                        className={`w-full p-5 rounded-[1.5rem] border flex items-center justify-between transition-all group text-left ${selectedApp?._id === app._id
+                                            ? 'bg-[#A67C52]/10 border-[#A67C52]/50 ring-2 ring-[#A67C52]/20'
+                                            : 'bg-[#1A0F0E]/40 border-[#3D2B1F]/40 hover:border-[#A67C52]/30 hover:bg-[#3D2B1F]/20'
+                                            }`}
+                                    >
                                     <div className="flex items-center gap-4">
                                         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#A67C52]/20 to-[#7F5539]/10 flex items-center justify-center font-black text-[#A67C52] border border-[#A67C52]/20 group-hover:scale-110 transition-transform shrink-0">
                                             {app.name?.charAt(0)?.toUpperCase()}
@@ -248,6 +284,7 @@ export default function ApplicationReview() {
                         </motion.div>
                     )}
                 </AnimatePresence>
+            </div>
             </div>
         </div>
     );

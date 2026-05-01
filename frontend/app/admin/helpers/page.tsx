@@ -17,6 +17,7 @@ const SKILLS_COLORS: Record<string, string> = {
 
 export default function HelpersPage() {
     const [apps, setApps] = useState<App[]>([]);
+    const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -24,12 +25,21 @@ export default function HelpersPage() {
     const [note, setNote] = useState('');
     const [acting, setActing] = useState(false);
 
-    useEffect(() => { fetchApps(); }, []);
-    const fetchApps = async () => {
+    useEffect(() => { fetchAll(); }, []);
+    
+    const fetchAll = async () => {
         setLoading(true);
-        try { const res = await adminService.getApplications(); if (res.success) setApps(res.data); }
-        finally { setLoading(false); }
+        try {
+            const [appRes, statsRes] = await Promise.all([
+                adminService.getApplications(),
+                adminService.getDashboardStats()
+            ]);
+            if (appRes.success) setApps(appRes.data);
+            if (statsRes.success) setStats(statsRes.data);
+        } finally { setLoading(false); }
     };
+
+    const fetchApps = fetchAll; // for refresh button
 
     const handleAction = async (id: string, action: 'approve' | 'reject') => {
         setActing(true);
@@ -41,17 +51,24 @@ export default function HelpersPage() {
                 setApps(p => p.map(a => a._id === id ? { ...a, status: ns } : a));
                 setSelected(p => p ? { ...p, status: ns } : null);
                 setNote('');
+                // Refresh stats too
+                adminService.getDashboardStats().then(r => r.success && setStats(r.data));
             } else toast.error(res.message);
         } finally { setActing(false); }
     };
 
-    const filtered = apps.filter(a => {
+    const filtered = React.useMemo(() => apps.filter(a => {
         const matchSearch = !search || a.name.toLowerCase().includes(search) || a.email.toLowerCase().includes(search);
         const matchFilter = filter === 'all' || a.status === filter;
         return matchSearch && matchFilter;
-    });
+    }), [apps, search, filter]);
 
-    const counts = { all: apps.length, pending: apps.filter(a => a.status === 'pending').length, approved: apps.filter(a => a.status === 'approved').length, rejected: apps.filter(a => a.status === 'rejected').length };
+    const appCounts = React.useMemo(() => ({ 
+        all: apps.length, 
+        pending: apps.filter(a => a.status === 'pending').length, 
+        approved: apps.filter(a => a.status === 'approved').length, 
+        rejected: apps.filter(a => a.status === 'rejected').length 
+    }), [apps]);
 
     const statusBadge = (s: string) => s === 'pending' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : s === 'approved' ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-400';
 
@@ -60,10 +77,10 @@ export default function HelpersPage() {
             {/* Stats */}
             <div className="grid grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Applications', value: counts.all, color: '#A67C52', icon: Users },
-                    { label: 'Pending Review', value: counts.pending, color: '#f97316', icon: Clock },
-                    { label: 'Approved Helpers', value: counts.approved, color: '#4ade80', icon: CheckCircle },
-                    { label: 'Rejected', value: counts.rejected, color: '#f87171', icon: XCircle },
+                    { label: 'Total Users', value: stats?.totalUsers ?? '—', color: '#A67C52', icon: Users },
+                    { label: 'Active Helpers', value: stats?.totalHelpers ?? '—', color: '#4ade80', icon: UserCheck },
+                    { label: 'Pending Review', value: appCounts.pending, color: '#f97316', icon: Clock },
+                    { label: 'Rejected', value: appCounts.rejected, color: '#f87171', icon: ShieldX },
                 ].map((c, i) => (
                     <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
                         className="p-5 rounded-[1.5rem] bg-[#1A0F0E]/40 border border-[#3D2B1F]/40">
@@ -88,7 +105,7 @@ export default function HelpersPage() {
                             {(['all', 'pending', 'approved', 'rejected'] as const).map(f => (
                                 <button key={f} onClick={() => setFilter(f)}
                                     className={`h-11 px-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all ${filter === f ? 'bg-[#A67C52] text-white' : 'bg-[#1A0F0E]/40 border border-[#3D2B1F]/40 text-[#A67C52]/50 hover:text-[#A67C52]'}`}>
-                                    {f} {filter !== f && <span className="opacity-50">({counts[f]})</span>}
+                                    {f} {filter !== f && <span className="opacity-50">({appCounts[f]})</span>}
                                 </button>
                             ))}
                             <button onClick={fetchApps} disabled={loading} className="h-11 w-11 rounded-2xl bg-[#1A0F0E]/40 border border-[#3D2B1F]/40 flex items-center justify-center text-[#A67C52]/50 hover:text-[#A67C52] transition-all">

@@ -13,13 +13,17 @@ export const getDashboardInfo = async (req: Request, res: Response, next: NextFu
             helperCount,
             adminCount,
             postCount,
-            pendingApps
+            pendingApps,
+            approvedApps,
+            rejectedApps
         ] = await Promise.all([
             User.countDocuments(),
             Helper.countDocuments(),
             Admin.countDocuments(),
             Post.countDocuments(),
-            HelperApplication.countDocuments({ status: 'pending' })
+            HelperApplication.countDocuments({ status: 'pending' }),
+            HelperApplication.countDocuments({ status: 'approved' }),
+            HelperApplication.countDocuments({ status: 'rejected' })
         ]);
 
         // Calculate a simulated "Satisfied" percentage based on users with no recent flags or positive interactions
@@ -31,7 +35,13 @@ export const getDashboardInfo = async (req: Request, res: Response, next: NextFu
             totalUsers: userCount,
             totalHelpers: helperCount,
             totalPosts: postCount,
-            pendingApplications: pendingApps,
+            applicationStats: {
+                pending: pendingApps,
+                approved: approvedApps,
+                rejected: rejectedApps,
+                total: pendingApps + approvedApps + rejectedApps
+            },
+            pendingApplications: pendingApps, // legacy support
             breakdown: {
                 users: userCount,
                 helpers: helperCount,
