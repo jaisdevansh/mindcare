@@ -328,7 +328,9 @@ export default function HelpersPage() {
                 if (helpersRes.success) setHelpers(helpersRes.data || []);
             } catch { }
             setLoadingHelpers(false);
-            if (user.role === 'user') {
+            
+            // Always fetch application status if logged in to show history/current state
+            if (user?.id) {
                 try {
                     const appRes = await apiFetch('/helpers/my-application');
                     if (appRes.success) setMyApplication(appRes.data);
@@ -336,7 +338,7 @@ export default function HelpersPage() {
             }
         };
         fetchData();
-    }, [user.role]);
+    }, [user?.id, user?.role]);
 
     const filtered = helpers.filter(h =>
         h.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -375,7 +377,33 @@ export default function HelpersPage() {
 
             {/* ── Application Status Banner ── */}
             <AnimatePresence>
-                {myApplication && statusConf && (
+                {/* Case 1: Already a helper */}
+                {user.role === 'helper' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center justify-between p-5 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/30 backdrop-blur-xl mb-4"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <BadgeCheck className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <p className="text-white font-black text-base">You are a Verified Helper! 🌟</p>
+                                <p className="text-[#A78BFA] text-xs font-medium">Helping the community one heart at a time.</p>
+                            </div>
+                        </div>
+                        <Button 
+                            onClick={() => router.push('/helper/dashboard')}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-600/20"
+                        >
+                            Helper Dashboard <ChevronRight className="w-4 h-4 ml-2" />
+                        </Button>
+                    </motion.div>
+                )}
+
+                {/* Case 2: Application pending/rejected */}
+                {user.role === 'user' && myApplication && statusConf && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}

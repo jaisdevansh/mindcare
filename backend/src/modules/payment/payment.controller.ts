@@ -28,7 +28,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         const order = await razorpay.orders.create({
             amount,
             currency: 'INR',
-            receipt: `mindcare_${type}_${helperId}_${Date.now()}`,
+            receipt: `mc_${type}_${(helperId || '').slice(-8)}_${Date.now()}`,
             notes: {
                 type,
                 helperId,

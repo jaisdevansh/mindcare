@@ -62,8 +62,8 @@ export const HelperDashboard = () => {
                         <Activity className="w-4 h-4 text-rose-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">${stats.earnings}</div>
-                        <p className="text-xs text-slate-500 mt-1">Pending payout: $45</p>
+                        <div className="text-2xl font-bold text-white">₹{stats.earnings}</div>
+                        <p className="text-xs text-slate-500 mt-1">Pending payout: ₹45</p>
                     </CardContent>
                 </Card>
             </div>

@@ -3,8 +3,9 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Heart, ArrowRight, ShieldCheck, Mail, User, ChevronLeft, CheckCircle2, ChevronRight, FileText } from "lucide-react";
+import { Heart, ArrowRight, ShieldCheck, Mail, User, ChevronLeft, CheckCircle2, ChevronRight, FileText, Phone } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiFetch } from "@/lib/api";
 
 export default function ApplyHelperPage() {
     const [step, setStep] = useState(1);
@@ -12,27 +13,57 @@ export default function ApplyHelperPage() {
     const [success, setSuccess] = useState(false);
 
     const [formData, setFormData] = useState({
-        fullName: '',
-        email: '',
-        age: '',
+        phone: '',
+        bio: '',
+        motivation: '',
         experience: '',
-        reason: ''
+        specializations: '',
+        availability: '',
+        hasTraining: false,
+        trainingDetails: ''
     });
+
+    const [myApplication, setMyApplication] = useState<any>(null);
+    const [checkingStatus, setCheckingStatus] = useState(true);
+
+    React.useEffect(() => {
+        const fetchStatus = async () => {
+            try {
+                const res = await apiFetch('/helpers/my-application');
+                if (res.success) setMyApplication(res.data);
+            } catch {}
+            setCheckingStatus(false);
+        };
+        fetchStatus();
+    }, []);
 
     const handleNext = (e: React.FormEvent) => {
         e.preventDefault();
         setStep(2);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const res = await apiFetch('/helpers/apply', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ...formData,
+                    specializations: formData.specializations.split(',').map(s => s.trim()).filter(Boolean),
+                }),
+            });
+            if (res.success) {
+                setSuccess(true);
+                toast.success("Application submitted successfully!");
+            } else {
+                toast.error(res.message || "Failed to submit application");
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Something went wrong");
+        } finally {
             setLoading(false);
-            setSuccess(true);
-            toast.success("Application submitted successfully!");
-        }, 2000);
+        }
     };
 
     const updateForm = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -107,37 +138,34 @@ export default function ApplyHelperPage() {
                                 className="space-y-4 relative z-10"
                             >
                                 <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Legal Name</label>
+                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Phone Number</label>
                                     <div className="relative flex items-center group">
-                                        <User className="w-4 h-4 absolute left-4 text-[#9DA7B3] group-focus-within:text-[#7C5CFF]" />
+                                        <Phone className="w-4 h-4 absolute left-4 text-[#9DA7B3] group-focus-within:text-[#7C5CFF]" />
                                         <input
-                                            name="fullName" value={formData.fullName} onChange={updateForm}
-                                            type="text" placeholder="Jane Doe" required
+                                            name="phone" value={formData.phone} onChange={updateForm}
+                                            type="text" placeholder="+91 98765 43210" required
                                             className="w-full h-12 bg-white/[0.05] border border-white/10 rounded-xl px-12 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Email Address</label>
-                                    <div className="relative flex items-center group">
-                                        <Mail className="w-4 h-4 absolute left-4 text-[#9DA7B3] group-focus-within:text-[#7C5CFF]" />
-                                        <input
-                                            name="email" value={formData.email} onChange={updateForm}
-                                            type="email" placeholder="jane@example.com" required
-                                            className="w-full h-12 bg-white/[0.05] border border-white/10 rounded-xl px-12 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Age</label>
+                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Short Bio</label>
                                     <input
-                                        name="age" value={formData.age} onChange={updateForm}
-                                        type="number" min="18" placeholder="Must be 18+" required
+                                        name="bio" value={formData.bio} onChange={updateForm}
+                                        type="text" placeholder="Tell us about yourself briefly" required
                                         className="w-full h-12 bg-white/[0.05] border border-white/10 rounded-xl px-4 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all"
                                     />
-                                    <p className="text-[10px] text-[#9DA7B3] ml-1 mt-1">You must be legal age to become a verified helper.</p>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Motivation</label>
+                                    <textarea
+                                        name="motivation" value={formData.motivation} onChange={updateForm}
+                                        placeholder="Why do you want to help others?" required
+                                        rows={3}
+                                        className="w-full bg-white/[0.05] border border-white/10 rounded-xl p-4 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all resize-none"
+                                    />
                                 </div>
 
                                 <button
@@ -162,28 +190,30 @@ export default function ApplyHelperPage() {
                                 </button>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Do you have prior counseling experience?</label>
-                                    <select
-                                        name="experience" required value={formData.experience} onChange={updateForm as any}
-                                        className="w-full h-12 bg-white/[0.05] border border-white/10 rounded-xl px-4 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all appearance-none cursor-pointer"
-                                    >
-                                        <option value="" disabled className="bg-[#0B0F2A]">Select an option</option>
-                                        <option value="none" className="bg-[#0B0F2A]">No, but I am extremely empathetic</option>
-                                        <option value="volunteer" className="bg-[#0B0F2A]">Yes, as a volunteer</option>
-                                        <option value="professional" className="bg-[#0B0F2A]">Yes, I am a professional</option>
-                                    </select>
+                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Relevant Experience</label>
+                                    <textarea
+                                        name="experience" required value={formData.experience} onChange={updateForm}
+                                        rows={3} placeholder="Tell us about your background in support or counseling..."
+                                        className="w-full bg-white/[0.05] border border-white/10 rounded-xl p-4 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all resize-none"
+                                    />
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Why do you want to join MindCare?</label>
-                                    <div className="relative group">
-                                        <FileText className="w-4 h-4 absolute left-4 top-4 text-[#9DA7B3] group-focus-within:text-[#7C5CFF]" />
-                                        <textarea
-                                            name="reason" required value={formData.reason} onChange={updateForm}
-                                            rows={4} placeholder="I want to help because..."
-                                            className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all resize-none"
-                                        />
-                                    </div>
+                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Specializations (comma separated)</label>
+                                    <input
+                                        name="specializations" value={formData.specializations} onChange={updateForm}
+                                        type="text" placeholder="e.g. Anxiety, Career, Relationships" required
+                                        className="w-full h-12 bg-white/[0.05] border border-white/10 rounded-xl px-4 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium text-[#9DA7B3] uppercase tracking-wider ml-1">Availability</label>
+                                    <input
+                                        name="availability" value={formData.availability} onChange={updateForm}
+                                        type="text" placeholder="e.g. Weekends, Evenings (6-9 PM)" required
+                                        className="w-full h-12 bg-white/[0.05] border border-white/10 rounded-xl px-4 text-white text-sm focus:ring-2 focus:ring-[#7C5CFF]/50 focus:border-[#7C5CFF] outline-none transition-all"
+                                    />
                                 </div>
 
                                 <div className="p-4 bg-white/5 border border-white/10 rounded-xl flex gap-3 mt-4">

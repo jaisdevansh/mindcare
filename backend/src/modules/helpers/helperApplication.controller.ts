@@ -4,6 +4,7 @@ import { AuthRequest } from '../../middleware/auth.middleware';
 import { HelperApplication } from './helperApplication.model';
 import { User } from '../users/user.model';
 import { Helper } from './helper.model';
+import { createNotification } from '../notifications/notification.service';
 import bcrypt from 'bcrypt';
 
 // ─── SUBMIT APPLICATION ───────────────────────────────────────────────────────
@@ -133,6 +134,15 @@ export const approveApplication = async (req: AuthRequest, res: Response, next: 
             await existingHelper.save();
         }
 
+        // Notify user
+        await createNotification(
+            application.userId.toString(),
+            'Helper Access Granted! 🎉',
+            'Your application has been approved. Welcome to the MindCare helper community!',
+            'helper',
+            '/helper/dashboard'
+        );
+
         sendResponse(res, 200, true, `${user.name}'s application approved. They are now a helper.`, { application, user });
     } catch (error) {
         next(error);
@@ -157,7 +167,16 @@ export const rejectApplication = async (req: AuthRequest, res: Response, next: N
             return;
         }
 
-        sendResponse(res, 200, true, 'Application rejected.', application);
+        // Notify user
+        await createNotification(
+            application.userId.toString(),
+            'Application Update',
+            `Your application to be a helper has been reviewed. Status: ${application.status}. ${adminNote ? 'Note: ' + adminNote : ''}`,
+            'helper',
+            '/helpers'
+        );
+
+        sendResponse(res, 200, true, 'Application processed.', application);
     } catch (error) {
         next(error);
     }
