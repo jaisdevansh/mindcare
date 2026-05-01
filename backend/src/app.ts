@@ -21,6 +21,7 @@ import notificationRoutes from './modules/notifications/notification.routes';
 import { errorHandler } from './utils/error';
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Disable ETags so API endpoints always return 200 (never 304 Not Modified)
 app.set('etag', false);
