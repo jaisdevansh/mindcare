@@ -88,7 +88,7 @@ app.use('/contact', contactRoutes);
 app.use('/notifications', notificationRoutes);
 
 // Catch-all route for undefined endpoints
-app.use('*', (req, res) => {
+app.use((req, res) => {
     res.status(404).json({ 
         error: 'Route not found', 
         message: `Cannot ${req.method} ${req.originalUrl}`,
