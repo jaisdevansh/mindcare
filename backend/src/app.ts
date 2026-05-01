@@ -40,7 +40,8 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',
-    'https://mindcare-frontend.vercel.app'
+    'https://mindcare-frontend.vercel.app',
+    'https://mindcare-frontend-tan.vercel.app'
 ].filter(Boolean) as string[];
 
 app.use(cors({
