@@ -161,6 +161,7 @@ export default function AssessmentPage() {
             if (res.success) {
                 setSessionId(res.data.sessionId);
                 setCurrentQuestion(res.data.question);
+                console.log('%c[AI QUESTION]', 'background: #7C5CFF; color: white; padding: 2px 5px; border-radius: 3px;', res.data.question);
                 
                 // For MCQ mode, generate options from the question
                 if (selectedMode === 'mcq') {
@@ -195,6 +196,7 @@ export default function AssessmentPage() {
 
         setIsLoading(true);
         try {
+            console.log('%c[USER ANSWER]', 'background: #5B6CFF; color: white; padding: 2px 5px; border-radius: 3px;', currentAnswer);
             const res = await dynamicAssessmentService.answerAndGetNext(sessionId, currentAnswer);
             
             if (res.success) {
@@ -206,6 +208,7 @@ export default function AssessmentPage() {
                 } else {
                     // Show next question
                     setCurrentQuestion(res.data.question);
+                    console.log('%c[AI QUESTION]', 'background: #7C5CFF; color: white; padding: 2px 5px; border-radius: 3px;', res.data.question);
                     setQuestionNumber(res.data.questionNumber);
                     setCurrentAnswer(''); // Clear input for next question
                     

@@ -174,6 +174,7 @@ export const AIChatUI = () => {
         if (!msg || isTyping) return;
 
         setMessages(prev => [...prev, { role: 'user', content: msg }]);
+        console.log('%c[USER MESSAGE]', 'background: #5B6CFF; color: white; padding: 2px 5px; border-radius: 3px;', msg);
         setInput('');
         setIsTyping(true);
         stopSpeaking();
@@ -184,6 +185,7 @@ export const AIChatUI = () => {
             if (res.success) {
                 const reply = res.data.aiResponse || res.data.reply || "I'm here. Tell me more about that.";
                 setMessages(prev => [...prev, { role: 'ai', content: reply }]);
+                console.log('%c[AI RESPONSE]', 'background: #7C5CFF; color: white; padding: 2px 5px; border-radius: 3px;', reply);
                 speakMessage(reply);
             }
         } catch {
