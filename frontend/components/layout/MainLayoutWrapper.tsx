@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { Navbar } from '@/components/Navbar';
@@ -17,9 +17,22 @@ const AUTH_ROUTES = ['/login', '/signup', '/verify-email', '/forgot-password', '
 
 export const MainLayoutWrapper = ({ children }: { children: React.ReactNode }) => {
     const pathname = usePathname();
+    const router = useRouter();
     const { setUser } = useAppStore();
 
+    const isPublicNavRoute = PUBLIC_NAV_ROUTES.includes(pathname);
+    const isAuthRoute = AUTH_ROUTES.includes(pathname);
+
     useEffect(() => {
+        const token = localStorage.getItem('token');
+        const isAuthOrPublic = isAuthRoute || isPublicNavRoute;
+
+        // Redirect to login if accessing protected route without token
+        if (!token && !isAuthOrPublic) {
+            router.push('/login');
+            return;
+        }
+
         // Fast hydration: load user from localStorage immediately (before API)
         const cachedUser = localStorage.getItem('user');
         if (cachedUser) {
@@ -29,7 +42,6 @@ export const MainLayoutWrapper = ({ children }: { children: React.ReactNode }) =
             } catch { /* ignore */ }
         }
 
-        const token = localStorage.getItem('token');
         if (token) {
             authService.getMe().then(res => {
                 if (res.success) {
@@ -39,12 +51,10 @@ export const MainLayoutWrapper = ({ children }: { children: React.ReactNode }) =
                 }
             }).catch(err => {
                 console.error("Failed to hydrate user state:", err);
+                if (!isAuthOrPublic) router.push('/login');
             });
         }
-    }, [setUser]);
-
-    const isPublicNavRoute = PUBLIC_NAV_ROUTES.includes(pathname);
-    const isAuthRoute = AUTH_ROUTES.includes(pathname);
+    }, [setUser, pathname, isAuthRoute, isPublicNavRoute, router]);
 
     // Auth pages (like /login)
     if (isAuthRoute) {
