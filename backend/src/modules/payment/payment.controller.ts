@@ -67,16 +67,25 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
         }
 
         const userId = (req as any).user?._id || (req as any).user?.id;
+        const { subject } = req.body;
 
-        // Payment verified — return session access token
-        const sessionToken = crypto.randomBytes(32).toString('hex');
+        // Create a real ChatSession in the database
+        const { ChatSession } = require('../chat/chatSession.model');
+        const session = await ChatSession.create({
+            userId,
+            helperId: helperId || null,
+            type: 'human',
+            subject: subject || 'Seeking emotional support',
+            status: 'pending',
+            priority: 'medium'
+        });
 
         // Trigger notification
         if (userId) {
             await createNotification(
                 userId.toString(),
                 'Payment Successful',
-                `Your payment for the ${type} session was successful. You can now start the session.`,
+                `Your payment for the ${type} session was successful. A helper will join shortly.`,
                 'payment',
                 '/helpers'
             );
@@ -84,12 +93,12 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
 
         res.json({
             success: true,
-            message: 'Payment verified',
+            message: 'Payment verified and session created',
             data: {
                 paymentId: razorpay_payment_id,
                 type,
                 helperId,
-                sessionToken: crypto.randomBytes(32).toString('hex'),
+                sessionId: session._id,
             },
         });
     } catch (err: any) {

@@ -18,6 +18,7 @@ declare global { interface Window { Razorpay: any; } }
 
 export const PaymentModal = ({ helper, onClose, onSuccess }: Props) => {
     const [selected, setSelected] = useState<'chat' | 'call' | null>(null);
+    const [subject, setSubject] = useState('');
     const [loading, setLoading] = useState(false);
 
     const loadRazorpay = () =>
@@ -62,6 +63,7 @@ export const PaymentModal = ({ helper, onClose, onSuccess }: Props) => {
                             ...response,
                             type: selected,
                             helperId: helper._id,
+                            subject,
                         }),
                     });
                     if (verifyRes.success) {
@@ -139,6 +141,24 @@ export const PaymentModal = ({ helper, onClose, onSuccess }: Props) => {
                         );
                     })}
                 </div>
+
+                {/* Subject / Message Input */}
+                {selected && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="mb-5 space-y-1.5"
+                    >
+                        <label className="text-[10px] font-black text-[#A67C52] uppercase tracking-widest px-1">Describe your concern (Optional)</label>
+                        <textarea
+                            value={subject}
+                            onChange={(e) => setSubject(e.target.value)}
+                            placeholder="e.g., I'm feeling overwhelmed at work and need to vent..."
+                            className="w-full bg-white/[0.03] border border-white/[0.08] focus:border-[#7C5CFF]/40 rounded-xl px-4 py-3 text-xs text-white placeholder:text-white/20 focus:outline-none transition-all resize-none"
+                            rows={3}
+                        />
+                    </motion.div>
+                )}
 
                 {/* Trust badge */}
                 <div className="flex items-center gap-2 mb-4 px-1">

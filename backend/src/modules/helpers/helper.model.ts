@@ -8,6 +8,7 @@ const helperSchema = new Schema({
     skills: { type: [String], default: [] },
     experienceYears: { type: Number, default: 0 },
     rating: { type: Number, default: 0 },
+    totalSessions: { type: Number, default: 0 },
     verified: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },
