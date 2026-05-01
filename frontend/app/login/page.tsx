@@ -49,7 +49,12 @@ function LoginContent() {
                 localStorage.setItem("user", JSON.stringify(user));
                 setUser(user);
                 toast.success("Welcome to MindCare!");
-                router.push("/dashboard");
+                
+                // Role-based redirect for OAuth
+                const role = user.role;
+                if (role === 'admin') router.push("/admin");
+                else if (role === 'helper') router.push("/helper/dashboard");
+                else router.push("/dashboard");
             } catch (err) {
                 console.error('OAuth parsing error:', err);
                 toast.error("An error occurred during social login.");

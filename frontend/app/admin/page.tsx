@@ -42,7 +42,7 @@ export default function AdminDashboard() {
     };
 
     const topCards = [
-        { label: 'Total Users', value: stats?.totalUsers ?? 0, icon: Users, color: '#A67C52', href: '/admin/users' },
+        { label: 'Total Users', value: stats?.totalRegistered ?? 0, icon: Users, color: '#A67C52', href: '/admin/users' },
         { label: 'Active Helpers', value: stats?.totalHelpers ?? 0, icon: UserCheck, color: '#7F5539', href: '/admin/helpers' },
         { label: 'Community Posts', value: stats?.totalPosts ?? 0, icon: MessageSquare, color: '#B08968', href: '/admin/community' },
         { label: 'Pending Apps', value: stats?.pendingApplications ?? 0, icon: ClipboardList, color: '#9C6644', href: '/admin/applications' },

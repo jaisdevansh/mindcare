@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Calendar, CheckCircle, XCircle, FileText, Info, Activity, Clock, AlertTriangle, RefreshCw } from "lucide-react";
+import { Mail, Calendar, CheckCircle, XCircle, FileText, Info, Activity, Clock, AlertTriangle, RefreshCw, Users, UserCheck } from "lucide-react";
 import { adminService } from "@/lib/services/admin.service";
 import toast from "react-hot-toast";
 
@@ -84,8 +84,8 @@ export default function ApplicationReview() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Users', value: stats?.totalUsers ?? '—', color: '#A67C52', icon: Activity },
-                    { label: 'Active Helpers', value: stats?.totalHelpers ?? '—', color: '#4ade80', icon: CheckCircle },
+                    { label: 'Total Users', value: stats?.totalRegistered ?? '0', color: '#A67C52', icon: Users },
+                    { label: 'Active Helpers', value: stats?.totalHelpers ?? '—', color: '#4ade80', icon: UserCheck },
                     { label: 'Pending Review', value: appCounts.pending, color: '#f97316', icon: Clock },
                     { label: 'Rejected', value: appCounts.rejected, color: '#f87171', icon: AlertTriangle },
                 ].map((c, i) => (

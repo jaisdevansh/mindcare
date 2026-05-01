@@ -77,7 +77,7 @@ export default function HelpersPage() {
             {/* Stats */}
             <div className="grid grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Users', value: stats?.totalUsers ?? '—', color: '#A67C52', icon: Users },
+                    { label: 'Total Users', value: stats?.totalRegistered ?? '0', color: '#A67C52', icon: Users },
                     { label: 'Active Helpers', value: stats?.totalHelpers ?? '—', color: '#4ade80', icon: UserCheck },
                     { label: 'Pending Review', value: appCounts.pending, color: '#f97316', icon: Clock },
                     { label: 'Rejected', value: appCounts.rejected, color: '#f87171', icon: ShieldX },

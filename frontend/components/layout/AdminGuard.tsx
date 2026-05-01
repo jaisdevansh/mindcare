@@ -11,9 +11,16 @@ export const AdminGuard = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         const cachedUser = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
         const parsedUser = cachedUser ? JSON.parse(cachedUser) : null;
 
-        if (!parsedUser || parsedUser.role !== 'admin') {
+        if (!token || !parsedUser) {
+            // Silently redirect to login if not authenticated at all
+            router.push('/login');
+            return;
+        }
+
+        if (parsedUser.role !== 'admin') {
             toast.error("Access Denied: Admin privileges required.");
             router.push('/dashboard');
         }
