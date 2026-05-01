@@ -23,6 +23,7 @@ export default function LoginPage() {
 
 function LoginContent() {
     const [loading, setLoading] = useState(false);
+    const [redirecting, setRedirecting] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -43,6 +44,7 @@ function LoginContent() {
         } else if (token && userStr) {
             try {
                 const user = JSON.parse(decodeURIComponent(userStr));
+                setRedirecting(true);
                 localStorage.setItem("token", token);
                 localStorage.setItem("user", JSON.stringify(user));
                 setUser(user);
@@ -61,6 +63,7 @@ function LoginContent() {
         try {
             const response = await authService.login({ email, password });
             if (response.success) {
+                setRedirecting(true);
                 localStorage.setItem("token", response.data.token);
                 localStorage.setItem("user", JSON.stringify(response.data.user));
                 setUser(response.data.user);
@@ -81,6 +84,31 @@ function LoginContent() {
     const handleSocialLogin = (provider: 'google' | 'github') => {
         window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/${provider}`;
     };
+
+    if (redirecting) {
+        return (
+            <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#0B0F1A] relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#7C5CFF]/10 via-transparent to-[#5B6CFF]/10" />
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative z-10 flex flex-col items-center"
+                >
+                    <div className="w-16 h-16 mb-8 relative">
+                        <div className="absolute inset-0 rounded-2xl bg-[#7C5CFF]/20 animate-ping" />
+                        <div className="relative w-full h-full rounded-2xl bg-gradient-to-br from-[#7C5CFF] to-[#5B6CFF] flex items-center justify-center shadow-xl shadow-[#7C5CFF]/40">
+                            <Brain className="w-8 h-8 text-white animate-pulse" />
+                        </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Welcome Back!</h2>
+                    <div className="flex items-center gap-2 text-[#9DA7B3] font-light">
+                        <div className="w-4 h-4 border-2 border-[#7C5CFF]/30 border-t-[#7C5CFF] rounded-full animate-spin" />
+                        Preparing your dashboard...
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-transparent">
