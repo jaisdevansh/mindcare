@@ -132,6 +132,15 @@ export default function AssessmentPage() {
     const [questionNumber, setQuestionNumber] = useState<number>(1);
     const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
+    // Question history for previous question navigation
+    const [questionsHistory, setQuestionsHistory] = useState<Array<{
+        questionNumber: number;
+        question: string;
+        options: string[];
+        answer: string;
+    }>>([]);
+    const [currentHistoryIndex, setCurrentHistoryIndex] = useState<number>(0);
+
     // Auto-scroll to top when step changes
     useEffect(() => {
         const main = document.querySelector('main');
@@ -163,18 +172,29 @@ export default function AssessmentPage() {
                 setCurrentQuestion(res.data.question);
                 console.log('%c[AI QUESTION]', 'background: #7C5CFF; color: white; padding: 2px 5px; border-radius: 3px;', res.data.question);
                 
-                // For MCQ mode, generate options from the question
+                const initialOptions = selectedMode === 'mcq' ? (res.data.options || [
+                    'Strongly Agree',
+                    'Agree',
+                    'Neutral',
+                    'Disagree',
+                    'Strongly Disagree'
+                ]) : [];
+
                 if (selectedMode === 'mcq') {
-                    setCurrentOptions(res.data.options || [
-                        'Strongly Agree',
-                        'Agree',
-                        'Neutral',
-                        'Disagree',
-                        'Strongly Disagree'
-                    ]);
+                    setCurrentOptions(initialOptions);
                 }
                 
+                const initialItem = {
+                    questionNumber: 1,
+                    question: res.data.question,
+                    options: initialOptions,
+                    answer: '',
+                };
+
+                setQuestionsHistory([initialItem]);
+                setCurrentHistoryIndex(0);
                 setQuestionNumber(1);
+                setCurrentAnswer('');
                 setCurrentStep(2); // Go to question screen
                 toast.success(`${selectedMode === 'mcq' ? 'MCQ' : 'Descriptive'} Assessment started!`);
             } else {
@@ -187,6 +207,33 @@ export default function AssessmentPage() {
         }
     };
 
+    // Answer change handler (keeps history synced)
+    const handleAnswerSelect = (ans: string) => {
+        setCurrentAnswer(ans);
+        setQuestionsHistory(prev => {
+            const updated = [...prev];
+            if (updated[currentHistoryIndex]) {
+                updated[currentHistoryIndex] = { ...updated[currentHistoryIndex], answer: ans };
+            }
+            return updated;
+        });
+    };
+
+    // Navigate to previous question
+    const handlePreviousQuestion = () => {
+        if (currentHistoryIndex > 0) {
+            const prevIndex = currentHistoryIndex - 1;
+            const prevItem = questionsHistory[prevIndex];
+            if (prevItem) {
+                setCurrentHistoryIndex(prevIndex);
+                setCurrentQuestion(prevItem.question);
+                setCurrentOptions(prevItem.options || []);
+                setCurrentAnswer(prevItem.answer || '');
+                setQuestionNumber(prevItem.questionNumber);
+            }
+        }
+    };
+
     // Answer and get next question (both modes use this)
     const handleDynamicNext = async () => {
         if (!currentAnswer.trim()) {
@@ -194,6 +241,30 @@ export default function AssessmentPage() {
             return;
         }
 
+        // Save current answer into history
+        setQuestionsHistory(prev => {
+            const updated = [...prev];
+            if (updated[currentHistoryIndex]) {
+                updated[currentHistoryIndex] = { ...updated[currentHistoryIndex], answer: currentAnswer };
+            }
+            return updated;
+        });
+
+        // If reviewing an already answered previous question, move to the next already-loaded question
+        if (currentHistoryIndex < questionsHistory.length - 1) {
+            const nextIndex = currentHistoryIndex + 1;
+            const nextItem = questionsHistory[nextIndex];
+            if (nextItem) {
+                setCurrentHistoryIndex(nextIndex);
+                setCurrentQuestion(nextItem.question);
+                setCurrentOptions(nextItem.options || []);
+                setCurrentAnswer(nextItem.answer || '');
+                setQuestionNumber(nextItem.questionNumber);
+                return;
+            }
+        }
+
+        // Otherwise generate the next dynamic question via AI
         setIsLoading(true);
         try {
             console.log('%c[USER ANSWER]', 'background: #5B6CFF; color: white; padding: 2px 5px; border-radius: 3px;', currentAnswer);
@@ -206,21 +277,30 @@ export default function AssessmentPage() {
                     toast.success('All questions answered! Analyzing...');
                     handleDynamicSubmit();
                 } else {
-                    // Show next question
+                    const nextOptions = mode === 'mcq' ? (res.data.options || [
+                        'Strongly Agree',
+                        'Agree',
+                        'Neutral',
+                        'Disagree',
+                        'Strongly Disagree'
+                    ]) : [];
+
+                    const newItem = {
+                        questionNumber: res.data.questionNumber,
+                        question: res.data.question,
+                        options: nextOptions,
+                        answer: '',
+                    };
+
+                    setQuestionsHistory(prev => [...prev, newItem]);
+                    setCurrentHistoryIndex(prev => prev + 1);
                     setCurrentQuestion(res.data.question);
                     console.log('%c[AI QUESTION]', 'background: #7C5CFF; color: white; padding: 2px 5px; border-radius: 3px;', res.data.question);
                     setQuestionNumber(res.data.questionNumber);
                     setCurrentAnswer(''); // Clear input for next question
                     
-                    // For MCQ, keep same options (or update if backend sends new ones)
                     if (mode === 'mcq') {
-                        setCurrentOptions(res.data.options || [
-                            'Strongly Agree',
-                            'Agree',
-                            'Neutral',
-                            'Disagree',
-                            'Strongly Disagree'
-                        ]);
+                        setCurrentOptions(nextOptions);
                     }
                 }
             } else {
@@ -277,6 +357,8 @@ export default function AssessmentPage() {
         setCurrentQuestion('');
         setCurrentAnswer('');
         setCurrentOptions([]);
+        setQuestionsHistory([]);
+        setCurrentHistoryIndex(0);
         setQuestionNumber(1);
         setIsCompleted(false);
     };
@@ -480,7 +562,7 @@ export default function AssessmentPage() {
                                                     key={optIdx}
                                                     whileHover={{ scale: 1.01 }}
                                                     whileTap={{ scale: 0.99 }}
-                                                    onClick={() => setCurrentAnswer(opt)}
+                                                    onClick={() => handleAnswerSelect(opt)}
                                                     className={`w-full text-left px-4 py-3 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 font-medium text-sm ${isSelected
                                                         ? 'bg-blue-600/25 border-blue-500 text-white shadow-lg shadow-blue-500/10'
                                                         : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/30 hover:bg-white/[0.07]'
@@ -488,8 +570,8 @@ export default function AssessmentPage() {
                                                 >
                                                     <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? 'border-blue-400 bg-blue-500' : 'border-white/20'
                                                         }`}>
-                                                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                                                    </span>
+                                                         {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                                                     </span>
                                                     {opt}
                                                 </motion.button>
                                             );
@@ -499,7 +581,7 @@ export default function AssessmentPage() {
                                     /* Descriptive Textarea */
                                     <textarea
                                         value={currentAnswer}
-                                        onChange={e => setCurrentAnswer(e.target.value)}
+                                        onChange={e => handleAnswerSelect(e.target.value)}
                                         rows={4}
                                         autoFocus
                                         placeholder="Share your honest thoughts here... The AI will adapt the next question based on your answer."
@@ -508,13 +590,33 @@ export default function AssessmentPage() {
                                 )}
 
                                 <div className="flex justify-between items-center mt-6">
-                                    <button
-                                        onClick={handleBack}
-                                        className="text-slate-400 hover:text-white text-sm font-semibold transition-all flex items-center gap-1 group"
-                                    >
-                                        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                                        Back
-                                    </button>
+                                    <div className="flex items-center gap-2 sm:gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleBack}
+                                            className="text-slate-400 hover:text-white text-sm font-semibold transition-all flex items-center gap-1 group py-2 px-1"
+                                        >
+                                            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                                            Back
+                                        </button>
+
+                                        {/* Previous Question button to the right side of Back button */}
+                                        <button
+                                            type="button"
+                                            onClick={handlePreviousQuestion}
+                                            disabled={currentHistoryIndex === 0}
+                                            className={`text-sm font-semibold transition-all flex items-center gap-1.5 px-3 py-2 rounded-xl border ${
+                                                currentHistoryIndex === 0
+                                                    ? 'opacity-30 cursor-not-allowed border-white/5 text-slate-500 bg-white/[0.02]'
+                                                    : 'text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border-white/10 shadow-sm active:scale-95'
+                                            }`}
+                                            title={currentHistoryIndex === 0 ? "You are on the first question" : "View previous question"}
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                            Previous Question
+                                        </button>
+                                    </div>
+
                                     <Button
                                         onClick={handleDynamicNext}
                                         disabled={isLoading || !currentAnswer.trim()}
@@ -531,7 +633,7 @@ export default function AssessmentPage() {
                                             </>
                                         ) : (
                                             <>
-                                                Next Question <ChevronRight className="w-4 h-4" />
+                                                {currentHistoryIndex < questionsHistory.length - 1 ? 'Next' : 'Next Question'} <ChevronRight className="w-4 h-4" />
                                             </>
                                         )}
                                     </Button>
