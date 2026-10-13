@@ -17,14 +17,18 @@ export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getA
 
 // Initialize Analytics if supported (only runs in browser)
 export const analytics = typeof window !== 'undefined' ? 
-    isAnalyticsSupported().then(yes => yes ? getAnalytics(app) : null) : null;
+    isAnalyticsSupported().then(yes => yes ? getAnalytics(app) : null).catch(() => null) : null;
 
 // Initialize Messaging if supported (only runs in browser and if supported)
 export const messaging = async () => {
     if (typeof window !== 'undefined') {
-        const supported = await isMessagingSupported();
-        if (supported) {
-            return getMessaging(app);
+        try {
+            const supported = await isMessagingSupported();
+            if (supported) {
+                return getMessaging(app);
+            }
+        } catch {
+            return null;
         }
     }
     return null;

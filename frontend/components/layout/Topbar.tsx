@@ -50,15 +50,18 @@ export const Topbar = () => {
                 if (token) {
                     console.log("Got FCM token for user", user.id);
                 }
+            }).catch(err => {
+                console.warn('Push notification setup skipped:', err?.message || err);
             });
 
             // Listen for foreground messages
             const setupForegroundListener = async () => {
-                const msg = await messaging();
-                if (msg) {
-                    onMessage(msg, (payload) => {
-                        console.log("Foreground notification received:", payload);
-                        fetchNotifications(); // Refresh list
+                try {
+                    const msg = await messaging();
+                    if (msg) {
+                        onMessage(msg, (payload) => {
+                            console.log("Foreground notification received:", payload);
+                            fetchNotifications(); // Refresh list
                         toast.custom((t) => (
                             <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-[#1A0F0E] shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-[#3D2B1F]/40 cursor-pointer`}
                                 onClick={() => {
@@ -77,8 +80,11 @@ export const Topbar = () => {
                         ), { duration: 5000, position: 'top-right' });
                     });
                 }
-            };
-            setupForegroundListener();
+            } catch (e: any) {
+                console.warn('Foreground notification listener warning:', e?.message || e);
+            }
+        };
+        setupForegroundListener();
         }
     }, [user, router]);
 

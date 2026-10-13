@@ -123,11 +123,13 @@ No other text. Just the JSON.
 
 Generate now:`;
 
-    console.log('\n📤 Sending to Groq API with High Variance...');
+    console.log('\n📤 Sending prompt to AI...');
 
     try {
         const responseText = await generateGroqResponse(systemPrompt, 0.9, true);
-        const parsed = JSON.parse(responseText);
+        const match = responseText.match(/\{[\s\S]*\}/);
+        const jsonString = match ? match[0] : responseText;
+        const parsed = JSON.parse(jsonString);
         if (parsed.question) {
             console.log('✅ Next Question Generated:', parsed.question);
             return {
@@ -136,7 +138,7 @@ Generate now:`;
             };
         }
     } catch (e) {
-        console.error('Groq JSON parsing error:', e);
+        console.error('Dynamic question parsing error:', e);
     }
     
     return {
